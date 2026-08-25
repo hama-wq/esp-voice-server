@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: esp32-voice-server
+    env: python
+    plan: free
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "gunicorn app:app"
+    envVars:
+      - key: GEMINI_API_KEY
+        sync: false
