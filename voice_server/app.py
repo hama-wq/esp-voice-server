@@ -1,16 +1,41 @@
 import os
-from flask import Flask, request, jsonify
+import struct
+import subprocess
+import tempfile
+from flask import Flask, request, jsonify, Response
 import google.generativeai as genai
 
 app = Flask(__name__)
 
 genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
 model = genai.GenerativeModel(
-        "gemini-3.6-flash",
+    "gemini-3.6-flash",
     system_instruction="You are a helpful voice assistant on a small robot speaker. "
                         "Listen to the audio question and answer in under 2 short "
                         "sentences, plain text, no markdown."
 )
+
+
+def text_to_speech_wav(text):
+    """Uses espeak-ng (installed via Dockerfile) to synthesize a simple
+    robotic-voice WAV file, and reads back its real sample rate/channels
+    from the file header so the ESP32 can configure I2S correctly
+    regardless of espeak-ng's default output format."""
+    with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
+        tts_path = tmp.name
+    subprocess.run(
+        ["espeak-ng", "-v", "en", "-s", "150", "-w", tts_path, text],
+        check=True, timeout=20,
+    )
+    with open(tts_path, "rb") as f:
+        wav_bytes = f.read()
+    os.remove(tts_path)
+
+    # Canonical WAV header offsets: channels @22 (uint16), sample rate @24 (uint32)
+    channels = struct.unpack("<H", wav_bytes[22:24])[0]
+    sample_rate = struct.unpack("<I", wav_bytes[24:28])[0]
+    return wav_bytes, sample_rate, channels
+
 
 @app.route("/voice-query", methods=["POST"])
 def voice_query():
@@ -26,7 +51,13 @@ def voice_query():
             "Answer the question asked in this audio clip.",
         ])
         reply_text = response.text.strip()
-        return jsonify({"reply": reply_text})
+
+        wav_bytes, sample_rate, channels = text_to_speech_wav(reply_text)
+
+        resp = Response(wav_bytes, mimetype="audio/wav")
+        resp.headers["X-Audio-Rate"] = str(sample_rate)
+        resp.headers["X-Audio-Channels"] = str(channels)
+        return resp
 
     except Exception as e:
         return jsonify({"reply": f"Error: {str(e)}"}), 500
