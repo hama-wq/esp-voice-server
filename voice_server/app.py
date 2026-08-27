@@ -6,7 +6,7 @@ app = Flask(__name__)
 
 genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
 model = genai.GenerativeModel(
-    "gemini-2.0-flash",
+        "gemini-3.6-flash",
     system_instruction="You are a helpful voice assistant on a small robot speaker. "
                         "Listen to the audio question and answer in under 2 short "
                         "sentences, plain text, no markdown."
