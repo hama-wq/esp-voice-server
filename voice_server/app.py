@@ -1,6 +1,7 @@
 import os
 import re
 import struct
+import urllib.parse
 from flask import Flask, request, Response
 from openai import OpenAI
 
@@ -79,6 +80,7 @@ def voice_query():
             file=("query.wav", wav_bytes, "audio/wav"),
         )
         heard_text = transcript.text.strip()
+        print(f">>> Heard: '{heard_text}' | Expected wake word: '{wake_word}'", flush=True)
 
         # Step 2: only proceed if the wake word was actually said
         question_text = strip_wake_word(heard_text, wake_word)
