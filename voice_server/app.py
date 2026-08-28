@@ -68,38 +68,50 @@ def voice_query():
     input_rate = int(request.headers.get("X-Input-Rate", 16000))
     input_channels = int(request.headers.get("X-Input-Channels", 1))
     wake_word = request.headers.get("X-Wake-Word", DEFAULT_WAKE_WORD)
+    # Set by the device when it's already in a follow-up window (you
+    # already said the wake word once and got a "Yes?") - in that case
+    # whatever you say next IS the question, no wake word needed again.
+    skip_wake_word = request.headers.get("X-Skip-Wake-Word", "0") == "1"
 
     # We only know the final length now that the full body has
     # arrived, so we build the WAV header here rather than on-device.
     wav_bytes = build_wav_header(len(pcm_bytes), input_rate, input_channels) + pcm_bytes
 
     try:
-        # Step 1: speech-to-text on the whole thing
         transcript = client.audio.transcriptions.create(
             model="whisper-1",
             file=("query.wav", wav_bytes, "audio/wav"),
         )
         heard_text = transcript.text.strip()
-        print(f">>> Heard: '{heard_text}' | Expected wake word: '{wake_word}'", flush=True)
+        print(f">>> Heard: '{heard_text}' | skip_wake_word={skip_wake_word} | Expected wake word: '{wake_word}'", flush=True)
 
-        # Step 2: only proceed if the wake word was actually said
-        question_text = strip_wake_word(heard_text, wake_word)
-        if question_text is None:
-            return Response(status=204)  # wake word missing - stay silent
-        if not question_text:
-            question_text = "The user said something unclear after the wake word."
+        await_followup = False
 
-        # Step 3: generate a short answer
-        chat = client.chat.completions.create(
-            model=CHAT_MODEL,
-            messages=[
-                {"role": "system", "content": "You are a helpful voice assistant on a small robot speaker. Keep answers under 2 short sentences, plain text, no markdown, no emojis."},
-                {"role": "user", "content": question_text},
-            ],
-        )
-        reply_text = chat.choices[0].message.content.strip()
+        if skip_wake_word:
+            # Already in a follow-up window - treat everything said as
+            # the question directly, no wake word required.
+            question_text = heard_text if heard_text else "The user said something unclear."
+        else:
+            question_text = strip_wake_word(heard_text, wake_word)
+            if question_text is None:
+                return Response(status=204)  # wake word missing entirely - stay silent
+            if not question_text:
+                # Just the wake word alone, nothing else said yet -
+                # acknowledge and open a follow-up window instead of
+                # answering anything.
+                reply_text = "Yes?"
+                await_followup = True
 
-        # Step 4: natural-sounding speech
+        if not await_followup:
+            chat = client.chat.completions.create(
+                model=CHAT_MODEL,
+                messages=[
+                    {"role": "system", "content": "You are a helpful voice assistant on a small robot speaker. Keep answers under 2 short sentences, plain text, no markdown, no emojis."},
+                    {"role": "user", "content": question_text},
+                ],
+            )
+            reply_text = chat.choices[0].message.content.strip()
+
         speech = client.audio.speech.create(
             model=TTS_MODEL,
             voice=TTS_VOICE,
@@ -112,6 +124,7 @@ def voice_query():
         resp = Response(reply_wav_bytes, mimetype="audio/wav")
         resp.headers["X-Audio-Rate"] = str(sample_rate)
         resp.headers["X-Audio-Channels"] = str(channels)
+        resp.headers["X-Await-Followup"] = "1" if await_followup else "0"
         return resp
 
     except Exception as e:
