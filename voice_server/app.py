@@ -36,23 +36,33 @@ def build_wav_header(data_size, sample_rate, channels, bits=16):
 
 
 def strip_wake_word(text, wake_word):
-    """Checks whether the wake word appears at (or very near) the
-    start of what was said, and if so, returns the rest of the
-    sentence with it removed. Returns None if the wake word wasn't
-    found near the start."""
+    """Checks whether the wake word (or a close transcription variant
+    of it, e.g. Whisper hearing 'Aleksandra' for 'Alexander') appears
+    near the start of what was said, and if so, returns the rest of
+    the sentence with it removed. Returns None if no reasonable match
+    is found near the start."""
     stripped = text.strip()
-    # Allow a little leading noise ("uh, Alexander, ...") by checking
-    # within roughly the first few words, not requiring it be the
-    # very first character.
-    lookahead = " ".join(stripped.split()[:4])
+    words = stripped.split()
+    lookahead_words = words[:4]
+    lookahead = " ".join(lookahead_words)
+
     match = re.search(re.escape(wake_word), lookahead, re.IGNORECASE)
-    if not match:
-        return None
-    # Remove the wake word (and any immediately following comma) from
-    # the full text, once, at the position it was found.
-    pattern = re.compile(re.escape(wake_word) + r"[,]?\s*", re.IGNORECASE)
-    remainder = pattern.sub("", stripped, count=1).strip()
-    return remainder
+    if match:
+        pattern = re.compile(re.escape(wake_word) + r"[,.!?]?\s*", re.IGNORECASE)
+        remainder = pattern.sub("", stripped, count=1).strip()
+        return remainder
+
+    # Fuzzy fallback: a near-miss transcription of the name (shares
+    # the same first few letters) still counts, since speech-to-text
+    # on names isn't perfectly reliable.
+    prefix = wake_word[:4].lower()
+    for i, w in enumerate(lookahead_words):
+        clean_w = re.sub(r"[^a-zA-Z]", "", w)
+        if len(clean_w) >= 4 and clean_w.lower().startswith(prefix):
+            remainder_words = words[:i] + words[i + 1:]
+            return " ".join(remainder_words).strip()
+
+    return None
 
 
 @app.route("/voice-query", methods=["POST"])
