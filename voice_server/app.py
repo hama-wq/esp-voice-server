@@ -91,6 +91,8 @@ def voice_query():
         transcript = client.audio.transcriptions.create(
             model="whisper-1",
             file=("query.wav", wav_bytes, "audio/wav"),
+            language="en",
+            prompt=f"The assistant's name is {wake_word}.",
         )
         heard_text = transcript.text.strip()
         print(f">>> Heard: '{heard_text}' | skip_wake_word={skip_wake_word} | Expected wake word: '{wake_word}'", flush=True)
