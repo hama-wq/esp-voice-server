@@ -35,6 +35,51 @@ def build_wav_header(data_size, sample_rate, channels, bits=16):
     )
 
 
+def parse_timer_request(text):
+    """Checks whether the question is asking to set a timer/countdown
+    (e.g. "set a timer for 10 minutes", "timer for 1 hour and 30
+    seconds"). Returns the total duration in seconds if so, else None.
+    Deliberately NOT handled by GPT - a duration needs to be exact,
+    and this is far more reliable than hoping the model gets it right
+    and phrases its reply in a way we can parse back out."""
+    t = text.lower()
+    if "timer" not in t:
+        return None
+    total_seconds = 0
+    found = False
+    for match in re.finditer(r"(\d+)\s*(hour|hr|minute|min|second|sec)s?", t):
+        num = int(match.group(1))
+        unit = match.group(2)
+        if unit in ("hour", "hr"):
+            total_seconds += num * 3600
+        elif unit in ("minute", "min"):
+            total_seconds += num * 60
+        else:
+            total_seconds += num
+        found = True
+    return total_seconds if found and total_seconds > 0 else None
+
+
+def describe_duration(total_seconds):
+    """Turns a second count back into a short spoken phrase, e.g.
+    '10 minutes' or '1 hour and 30 minutes'."""
+    hours = total_seconds // 3600
+    minutes = (total_seconds % 3600) // 60
+    seconds = total_seconds % 60
+    parts = []
+    if hours:
+        parts.append(f"{hours} hour{'s' if hours != 1 else ''}")
+    if minutes:
+        parts.append(f"{minutes} minute{'s' if minutes != 1 else ''}")
+    if seconds:
+        parts.append(f"{seconds} second{'s' if seconds != 1 else ''}")
+    if not parts:
+        return "0 seconds"
+    if len(parts) == 1:
+        return parts[0]
+    return ", ".join(parts[:-1]) + " and " + parts[-1]
+
+
 def strip_wake_word(text, wake_word):
     """Checks whether the wake word (or a close transcription variant
     of it, e.g. Whisper hearing 'Aleksandra' for 'Alexander') appears
@@ -124,16 +169,21 @@ def voice_query():
                 reply_text = "Yes?"
                 await_followup = True
 
+        timer_seconds = None
         if not await_followup:
-            chat = client.chat.completions.create(
-                model=CHAT_MODEL,
-                max_tokens=60,
-                messages=[
-                    {"role": "system", "content": "You are a helpful voice assistant on a small robot speaker. Keep answers under 2 short sentences, plain text, no markdown, no emojis."},
-                    {"role": "user", "content": question_text},
-                ],
-            )
-            reply_text = chat.choices[0].message.content.strip()
+            timer_seconds = parse_timer_request(question_text)
+            if timer_seconds:
+                reply_text = f"Timer set for {describe_duration(timer_seconds)}."
+            else:
+                chat = client.chat.completions.create(
+                    model=CHAT_MODEL,
+                    max_tokens=60,
+                    messages=[
+                        {"role": "system", "content": "You are a helpful voice assistant on a small robot speaker. Keep answers under 2 short sentences, plain text, no markdown, no emojis."},
+                        {"role": "user", "content": question_text},
+                    ],
+                )
+                reply_text = chat.choices[0].message.content.strip()
 
         speech = client.audio.speech.create(
             model=TTS_MODEL,
@@ -148,6 +198,7 @@ def voice_query():
         resp.headers["X-Audio-Rate"] = str(sample_rate)
         resp.headers["X-Audio-Channels"] = str(channels)
         resp.headers["X-Await-Followup"] = "1" if await_followup else "0"
+        resp.headers["X-Set-Timer-Seconds"] = str(timer_seconds) if timer_seconds else "0"
         return resp
 
     except Exception as e:
