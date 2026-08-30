@@ -117,6 +117,7 @@ def voice_query():
         if not await_followup:
             chat = client.chat.completions.create(
                 model=CHAT_MODEL,
+                max_tokens=60,
                 messages=[
                     {"role": "system", "content": "You are a helpful voice assistant on a small robot speaker. Keep answers under 2 short sentences, plain text, no markdown, no emojis."},
                     {"role": "user", "content": question_text},
