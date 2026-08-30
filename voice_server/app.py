@@ -48,9 +48,18 @@ def strip_wake_word(text, wake_word):
 
     match = re.search(re.escape(wake_word), lookahead, re.IGNORECASE)
     if match:
-        pattern = re.compile(re.escape(wake_word) + r"[,.!?]*\s*", re.IGNORECASE)
-        remainder = pattern.sub("", stripped, count=1).strip()
-        return remainder
+        # Anchored to the very front, so this only strips wake-word
+        # occurrences right at the start - and repeats, since Whisper
+        # sometimes transcribes a standalone wake word twice in a row
+        # (e.g. "Alexander, Alexander.").
+        pattern = re.compile(r"^\s*" + re.escape(wake_word) + r"[,.!?]*\s*", re.IGNORECASE)
+        remainder = stripped
+        while True:
+            new_remainder = pattern.sub("", remainder, count=1)
+            if new_remainder == remainder:
+                break
+            remainder = new_remainder
+        return remainder.strip()
 
     # Fuzzy fallback: a near-miss transcription of the name (shares
     # the same first few letters) still counts, since speech-to-text
