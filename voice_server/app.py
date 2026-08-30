@@ -48,7 +48,7 @@ def strip_wake_word(text, wake_word):
 
     match = re.search(re.escape(wake_word), lookahead, re.IGNORECASE)
     if match:
-        pattern = re.compile(re.escape(wake_word) + r"[,.!?]?\s*", re.IGNORECASE)
+        pattern = re.compile(re.escape(wake_word) + r"[,.!?]*\s*", re.IGNORECASE)
         remainder = pattern.sub("", stripped, count=1).strip()
         return remainder
 
@@ -107,6 +107,7 @@ def voice_query():
             question_text = strip_wake_word(heard_text, wake_word)
             if question_text is None:
                 return Response(status=204)  # wake word missing entirely - stay silent
+            print(f">>> After stripping wake word, remainder = '{question_text}'", flush=True)
             if not question_text:
                 # Just the wake word alone, nothing else said yet -
                 # acknowledge and open a follow-up window instead of
