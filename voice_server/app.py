@@ -35,6 +35,38 @@ def build_wav_header(data_size, sample_rate, channels, bits=16):
     )
 
 
+def is_time_request(text):
+    """Checks whether the question is asking for the current time.
+    Deliberately NOT handled by GPT - the model has no access to a
+    real clock and would either refuse or guess. Answered instead
+    using the device's own RTC time, sent with every request."""
+    t = text.lower()
+    patterns = [
+        r"\bwhat time is it\b",
+        r"\bwhat'?s the time\b",
+        r"\btell me the time\b",
+        r"\bcurrent time\b",
+        r"\bdo you know the time\b",
+        r"\bwhat time do (i|we) have\b",
+    ]
+    return any(re.search(p, t) for p in patterns)
+
+
+def format_spoken_time(time_str):
+    """Converts the device's 'HH:MM:SS' (24-hour) into a natural
+    spoken time like '2:32 PM'. Returns None if it can't be parsed."""
+    try:
+        hour_s, minute_s, _ = time_str.split(":")
+        hour, minute = int(hour_s), int(minute_s)
+    except (ValueError, AttributeError):
+        return None
+    period = "AM" if hour < 12 else "PM"
+    hour12 = hour % 12
+    if hour12 == 0:
+        hour12 = 12
+    return f"{hour12}:{minute:02d} {period}"
+
+
 def parse_timer_request(text):
     """Checks whether the question is asking to set a timer/countdown
     (e.g. "set a timer for 10 minutes", "timer for 1 hour and 30
@@ -136,6 +168,7 @@ def voice_query():
     # already said the wake word once and got a "Yes?") - in that case
     # whatever you say next IS the question, no wake word needed again.
     skip_wake_word = request.headers.get("X-Skip-Wake-Word", "0") == "1"
+    device_time = request.headers.get("X-Device-Time")
 
     # We only know the final length now that the full body has
     # arrived, so we build the WAV header here rather than on-device.
@@ -174,6 +207,9 @@ def voice_query():
             timer_seconds = parse_timer_request(question_text)
             if timer_seconds:
                 reply_text = f"Timer set for {describe_duration(timer_seconds)}."
+            elif is_time_request(question_text) and device_time:
+                spoken = format_spoken_time(device_time)
+                reply_text = f"It's {spoken}." if spoken else "Sorry, I couldn't read the clock."
             else:
                 chat = client.chat.completions.create(
                     model=CHAT_MODEL,
@@ -203,6 +239,20 @@ def voice_query():
 
     except Exception as e:
         return Response(f"Error: {str(e)}", status=500)
+
+
+@app.route("/alarm-sound", methods=["GET"])
+def alarm_sound():
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "alarm_sound.wav")
+    if not os.path.exists(path):
+        return Response("No alarm sound file uploaded", status=404)
+    with open(path, "rb") as f:
+        wav_bytes = f.read()
+    sample_rate, channels = read_wav_header_info(wav_bytes)
+    resp = Response(wav_bytes, mimetype="audio/wav")
+    resp.headers["X-Audio-Rate"] = str(sample_rate)
+    resp.headers["X-Audio-Channels"] = str(channels)
+    return resp
 
 
 @app.route("/", methods=["GET"])
