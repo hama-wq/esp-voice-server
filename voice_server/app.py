@@ -53,6 +53,46 @@ def is_time_request(text):
     return any(re.search(p, t) for p in patterns)
 
 
+def is_date_request(text):
+    """Checks whether the question is asking for today's date, the
+    current month, or the day of the week. Same reasoning as time -
+    GPT has no idea what today's actual date is and will guess wrong,
+    so this is answered from the device's own RTC date instead."""
+    t = text.lower()
+    patterns = [
+        r"\bwhat(?:'s| is) (the )?(today'?s )?date\b",
+        r"\bwhat day is it\b",
+        r"\bwhat day of the week\b",
+        r"\bwhich month\b",
+        r"\bwhat month\b",
+        r"\bwhat'?s the month\b",
+        r"\btoday'?s date\b",
+        r"\bwhat year is it\b",
+    ]
+    return any(re.search(p, t) for p in patterns)
+
+
+MONTH_NAMES = ["", "January", "February", "March", "April", "May", "June",
+               "July", "August", "September", "October", "November", "December"]
+
+
+def format_spoken_date(date_str):
+    """Converts the device's 'YYYY-MM-DD' into a natural spoken date
+    like 'September 1st'. Returns None if it can't be parsed."""
+    try:
+        year_s, month_s, day_s = date_str.split("-")
+        year, month, day = int(year_s), int(month_s), int(day_s)
+        if not (1 <= month <= 12):
+            return None
+    except (ValueError, AttributeError):
+        return None
+    if 11 <= day % 100 <= 13:
+        suffix = "th"
+    else:
+        suffix = {1: "st", 2: "nd", 3: "rd"}.get(day % 10, "th")
+    return f"{MONTH_NAMES[month]} {day}{suffix}"
+
+
 def format_spoken_time(time_str):
     """Converts the device's 'HH:MM:SS' (24-hour) into a natural
     spoken time like '2:32 PM'. Returns None if it can't be parsed."""
@@ -170,6 +210,7 @@ def voice_query():
     # whatever you say next IS the question, no wake word needed again.
     skip_wake_word = request.headers.get("X-Skip-Wake-Word", "0") == "1"
     device_time = request.headers.get("X-Device-Time")
+    device_date = request.headers.get("X-Device-Date")
 
     # We only know the final length now that the full body has
     # arrived, so we build the WAV header here rather than on-device.
@@ -212,6 +253,9 @@ def voice_query():
             elif is_time_request(question_text) and device_time:
                 spoken = format_spoken_time(device_time)
                 reply_text = f"It's {spoken}." if spoken else "Sorry, I couldn't read the clock."
+            elif is_date_request(question_text) and device_date:
+                spoken = format_spoken_date(device_date)
+                reply_text = f"It's {spoken}." if spoken else "Sorry, I couldn't read the date."
             else:
                 chat = client.chat.completions.create(
                     model=CHAT_MODEL,
