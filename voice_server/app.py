@@ -43,7 +43,8 @@ def is_time_request(text):
     t = text.lower()
     patterns = [
         r"\bwhat time is it\b",
-        r"\bwhat'?s the time\b",
+        r"\bwhat(?:'s| is) the time\b",
+        r"\bwhat time is this\b",
         r"\btell me the time\b",
         r"\bcurrent time\b",
         r"\bdo you know the time\b",
