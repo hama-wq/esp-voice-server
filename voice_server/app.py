@@ -2,6 +2,9 @@ import os
 import re
 import struct
 import urllib.parse
+import audioop
+import wave
+import io
 from flask import Flask, request, Response
 from openai import OpenAI
 
@@ -33,6 +36,29 @@ def build_wav_header(data_size, sample_rate, channels, bits=16):
         b"fmt ", 16, 1, channels, sample_rate, byte_rate, block_align, bits,
         b"data", data_size,
     )
+
+
+def downsample_wav(wav_bytes, target_rate):
+    """Re-encodes a WAV file at a lower sample rate using proper
+    linear-interpolation resampling (not just dropping samples).
+    Shrinks the file substantially, which matters a lot here: the
+    ESP32 can only play a reply with zero network dependency if the
+    whole thing fits in one memory allocation. A smaller file is far
+    more likely to fit, which means it doesn't have to rely on the
+    network staying steady for the whole playback - avoiding
+    connection jitter/lag entirely for most replies, rather than
+    just cushioning against it."""
+    buf = io.BytesIO(wav_bytes)
+    with wave.open(buf, "rb") as w:
+        channels = w.getnchannels()
+        rate = w.getframerate()
+        sampwidth = w.getsampwidth()
+        frames = w.readframes(w.getnframes())
+    if rate <= target_rate:
+        return wav_bytes  # already small enough, don't upsample
+    converted, _ = audioop.ratecv(frames, sampwidth, channels, rate, target_rate, None)
+    header = build_wav_header(len(converted), target_rate, channels, sampwidth * 8)
+    return header + converted
 
 
 def is_time_request(text):
@@ -115,9 +141,9 @@ def is_owner_request(text):
     patterns = [
         r"\bwho is your owner\b",
         r"\bwho'?s your owner\b",
-        r"\bwho built you\b",
-        r"\bwho made you\b",
-        r"\bwho created you\b",
+        r"\bwho (built|build) you\b",
+        r"\bwho (made|make) you\b",
+        r"\bwho (created|create) you\b",
         r"\bwho owns you\b",
     ]
     return any(re.search(p, t) for p in patterns)
@@ -370,7 +396,7 @@ def voice_query():
             else:
                 chat = client.chat.completions.create(
                     model=CHAT_MODEL,
-                    max_tokens=60,
+                    max_tokens=45,
                     messages=[
                         {"role": "system", "content": "You are a helpful voice assistant on a small robot speaker. Keep answers under 2 short sentences, plain text, no markdown, no emojis."},
                         {"role": "user", "content": question_text},
@@ -385,6 +411,7 @@ def voice_query():
             response_format="wav",
         )
         reply_wav_bytes = speech.read()
+        reply_wav_bytes = downsample_wav(reply_wav_bytes, 12000)
         sample_rate, channels = read_wav_header_info(reply_wav_bytes)
 
         resp = Response(reply_wav_bytes, mimetype="audio/wav")
