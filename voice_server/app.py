@@ -175,22 +175,24 @@ def parse_alarm_request(text):
     ampm = None
 
     # "H:MM am/pm" (typed-style).
-    m = re.search(r"\b(\d{1,2}):(\d{2})\s*(am|pm)?\b", t)
+    m = re.search(r"\b(\d{1,2}):(\d{2})\s*(a\.?m\.?|p\.?m\.?)?\b", t)
     if m:
         hour, minute, ampm = int(m.group(1)), int(m.group(2)), m.group(3)
     else:
         # Natural spoken form: "4 and 40 minutes", "4 40 minutes".
-        m = re.search(r"\b(\d{1,2})\b\s*(?:and\s+)?\b(\d{1,2})\b\s*minutes?\b\s*(am|pm)?", t)
+        m = re.search(r"\b(\d{1,2})\b\s*(?:and\s+)?\b(\d{1,2})\b\s*minutes?\b\s*(a\.?m\.?|p\.?m\.?)?", t)
         if m:
             hour, minute, ampm = int(m.group(1)), int(m.group(2)), m.group(3)
         else:
             # Hour only, no minutes mentioned - defaults to :00.
-            m = re.search(r"\b(\d{1,2})\s*(am|pm)\b", t)
+            m = re.search(r"\b(\d{1,2})\s*(a\.?m\.?|p\.?m\.?)\b", t)
             if m:
                 hour, minute, ampm = int(m.group(1)), 0, m.group(2)
 
     if hour is None:
         return None
+    if ampm:
+        ampm = ampm.replace(".", "")
     if ampm == "pm" and hour != 12:
         hour += 12
     elif ampm == "am" and hour == 12:
