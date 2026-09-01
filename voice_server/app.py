@@ -143,6 +143,23 @@ IDENTITY_REPLY = ("I am Alexander, an AI assistant capable of answering question
                    "Bluetooth speaker mode.")
 
 
+def parse_cancel_request(text):
+    """Checks whether the question is asking to remove/cancel a
+    running timer or alarm (e.g. "remove the alarm", "cancel the
+    timer", "stop the timer"). Returns "timer", "alarm", or None."""
+    t = text.lower()
+    cancel_words = ["remove", "cancel", "stop", "delete", "clear", "turn off"]
+    if not any(w in t for w in cancel_words):
+        return None
+    has_alarm = "alarm" in t
+    has_timer = "timer" in t
+    if has_alarm and not has_timer:
+        return "alarm"
+    if has_timer and not has_alarm:
+        return "timer"
+    return None
+
+
 def parse_alarm_request(text):
     """Checks whether the question is asking to set an alarm for a
     specific clock time (e.g. "set an alarm at 7 AM", "alarm for
@@ -322,11 +339,17 @@ def voice_query():
         timer_seconds = None
         alarm_hour = None
         alarm_minute = None
+        cancel_target = None
         if not await_followup:
             print(f">>> Device time header = '{device_time}', looks like a time question = {is_time_request(question_text)}", flush=True)
-            timer_seconds = parse_timer_request(question_text)
-            alarm_request = parse_alarm_request(question_text) if not timer_seconds else None
-            if timer_seconds:
+            cancel_target = parse_cancel_request(question_text)
+            timer_seconds = parse_timer_request(question_text) if not cancel_target else None
+            alarm_request = parse_alarm_request(question_text) if not timer_seconds and not cancel_target else None
+            if cancel_target == "timer":
+                reply_text = "Timer cancelled."
+            elif cancel_target == "alarm":
+                reply_text = "Alarm cancelled."
+            elif timer_seconds:
                 reply_text = f"Timer set for {describe_duration(timer_seconds)}."
             elif alarm_request:
                 alarm_hour, alarm_minute = alarm_request
@@ -370,6 +393,8 @@ def voice_query():
         resp.headers["X-Set-Alarm"] = "1" if alarm_hour is not None else "0"
         resp.headers["X-Set-Alarm-Hour"] = str(alarm_hour) if alarm_hour is not None else "0"
         resp.headers["X-Set-Alarm-Minute"] = str(alarm_minute) if alarm_minute is not None else "0"
+        resp.headers["X-Cancel-Timer"] = "1" if cancel_target == "timer" else "0"
+        resp.headers["X-Cancel-Alarm"] = "1" if cancel_target == "alarm" else "0"
         return resp
 
     except Exception as e:
