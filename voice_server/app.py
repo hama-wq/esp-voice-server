@@ -108,6 +108,30 @@ def format_spoken_time(time_str):
     return f"{hour12}:{minute:02d} {period}"
 
 
+def parse_alarm_request(text):
+    """Checks whether the question is asking to set an alarm for a
+    specific clock time (e.g. "set an alarm at 7 AM", "alarm for
+    7:30 PM"). Returns (hour, minute) in 24-hour form if so, else
+    None. Deliberately NOT handled by GPT - same reasoning as the
+    timer: an exact time needs to be exact, not guessed."""
+    t = text.lower()
+    if "alarm" not in t:
+        return None
+    m = re.search(r"\b(\d{1,2})(?::(\d{2}))?\s*(am|pm)?\b", t)
+    if not m:
+        return None
+    hour = int(m.group(1))
+    minute = int(m.group(2)) if m.group(2) else 0
+    ampm = m.group(3)
+    if ampm == "pm" and hour != 12:
+        hour += 12
+    elif ampm == "am" and hour == 12:
+        hour = 0
+    if not (0 <= hour <= 23 and 0 <= minute <= 59):
+        return None
+    return (hour, minute)
+
+
 def parse_timer_request(text):
     """Checks whether the question is asking to set a timer/countdown
     (e.g. "set a timer for 10 minutes", "timer for 1 hour and 30
@@ -245,11 +269,18 @@ def voice_query():
                 await_followup = True
 
         timer_seconds = None
+        alarm_hour = None
+        alarm_minute = None
         if not await_followup:
             print(f">>> Device time header = '{device_time}', looks like a time question = {is_time_request(question_text)}", flush=True)
             timer_seconds = parse_timer_request(question_text)
+            alarm_request = parse_alarm_request(question_text) if not timer_seconds else None
             if timer_seconds:
                 reply_text = f"Timer set for {describe_duration(timer_seconds)}."
+            elif alarm_request:
+                alarm_hour, alarm_minute = alarm_request
+                spoken = format_spoken_time(f"{alarm_hour:02d}:{alarm_minute:02d}:00")
+                reply_text = f"Alarm set for {spoken}."
             elif is_time_request(question_text) and device_time:
                 spoken = format_spoken_time(device_time)
                 reply_text = f"It's {spoken}." if spoken else "Sorry, I couldn't read the clock."
@@ -281,6 +312,9 @@ def voice_query():
         resp.headers["X-Audio-Channels"] = str(channels)
         resp.headers["X-Await-Followup"] = "1" if await_followup else "0"
         resp.headers["X-Set-Timer-Seconds"] = str(timer_seconds) if timer_seconds else "0"
+        resp.headers["X-Set-Alarm"] = "1" if alarm_hour is not None else "0"
+        resp.headers["X-Set-Alarm-Hour"] = str(alarm_hour) if alarm_hour is not None else "0"
+        resp.headers["X-Set-Alarm-Minute"] = str(alarm_minute) if alarm_minute is not None else "0"
         return resp
 
     except Exception as e:
