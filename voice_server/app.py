@@ -111,18 +111,34 @@ def format_spoken_time(time_str):
 def parse_alarm_request(text):
     """Checks whether the question is asking to set an alarm for a
     specific clock time (e.g. "set an alarm at 7 AM", "alarm for
-    7:30 PM"). Returns (hour, minute) in 24-hour form if so, else
-    None. Deliberately NOT handled by GPT - same reasoning as the
-    timer: an exact time needs to be exact, not guessed."""
+    7:30 PM", "alarm at four and 40 minutes"). Returns (hour, minute)
+    in 24-hour form if so, else None. Deliberately NOT handled by
+    GPT - same reasoning as the timer: an exact time needs to be
+    exact, not guessed."""
     t = text.lower()
     if "alarm" not in t:
         return None
-    m = re.search(r"\b(\d{1,2})(?::(\d{2}))?\s*(am|pm)?\b", t)
-    if not m:
+
+    hour = minute = None
+    ampm = None
+
+    # "H:MM am/pm" (typed-style).
+    m = re.search(r"\b(\d{1,2}):(\d{2})\s*(am|pm)?\b", t)
+    if m:
+        hour, minute, ampm = int(m.group(1)), int(m.group(2)), m.group(3)
+    else:
+        # Natural spoken form: "4 and 40 minutes", "4 40 minutes".
+        m = re.search(r"\b(\d{1,2})\b\s*(?:and\s+)?\b(\d{1,2})\b\s*minutes?\b\s*(am|pm)?", t)
+        if m:
+            hour, minute, ampm = int(m.group(1)), int(m.group(2)), m.group(3)
+        else:
+            # Hour only, no minutes mentioned - defaults to :00.
+            m = re.search(r"\b(\d{1,2})\s*(am|pm)\b", t)
+            if m:
+                hour, minute, ampm = int(m.group(1)), 0, m.group(2)
+
+    if hour is None:
         return None
-    hour = int(m.group(1))
-    minute = int(m.group(2)) if m.group(2) else 0
-    ampm = m.group(3)
     if ampm == "pm" and hour != 12:
         hour += 12
     elif ampm == "am" and hour == 12:
