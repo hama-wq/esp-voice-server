@@ -204,6 +204,7 @@ def voice_query():
 
         timer_seconds = None
         if not await_followup:
+            print(f">>> Device time header = '{device_time}', looks like a time question = {is_time_request(question_text)}", flush=True)
             timer_seconds = parse_timer_request(question_text)
             if timer_seconds:
                 reply_text = f"Timer set for {describe_duration(timer_seconds)}."
