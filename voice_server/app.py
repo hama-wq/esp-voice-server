@@ -108,6 +108,41 @@ def format_spoken_time(time_str):
     return f"{hour12}:{minute:02d} {period}"
 
 
+def is_owner_request(text):
+    """Checks whether the question is asking who owns/built/made the
+    device. Fixed answer, not left to GPT, so it's always exact."""
+    t = text.lower()
+    patterns = [
+        r"\bwho is your owner\b",
+        r"\bwho'?s your owner\b",
+        r"\bwho built you\b",
+        r"\bwho made you\b",
+        r"\bwho created you\b",
+        r"\bwho owns you\b",
+    ]
+    return any(re.search(p, t) for p in patterns)
+
+
+OWNER_REPLY = "My owner is Hamza Ahmad Ali, the CEO of Fir3aun Group and Alpha Technology Unit."
+
+
+def is_identity_request(text):
+    """Checks whether the question is asking who/what the assistant
+    is. Fixed answer, not left to GPT, so it's always exact."""
+    t = text.lower()
+    patterns = [
+        r"\bwho are you\b",
+        r"\bwhat is your name\b",
+        r"\bwhat'?s your name\b",
+    ]
+    return any(re.search(p, t) for p in patterns)
+
+
+IDENTITY_REPLY = ("I am Alexander, an AI assistant capable of answering questions, "
+                   "setting timers and alarms, and playing music. I also offer a "
+                   "Bluetooth speaker mode.")
+
+
 def parse_alarm_request(text):
     """Checks whether the question is asking to set an alarm for a
     specific clock time (e.g. "set an alarm at 7 AM", "alarm for
@@ -303,6 +338,10 @@ def voice_query():
             elif is_date_request(question_text) and device_date:
                 spoken = format_spoken_date(device_date)
                 reply_text = f"It's {spoken}." if spoken else "Sorry, I couldn't read the date."
+            elif is_owner_request(question_text):
+                reply_text = OWNER_REPLY
+            elif is_identity_request(question_text):
+                reply_text = IDENTITY_REPLY
             else:
                 chat = client.chat.completions.create(
                     model=CHAT_MODEL,
