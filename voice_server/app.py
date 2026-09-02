@@ -411,7 +411,9 @@ def voice_query():
             response_format="wav",
         )
         reply_wav_bytes = speech.read()
-        reply_wav_bytes = downsample_wav(reply_wav_bytes, 16000)
+        reply_wav_bytes = downsample_wav(reply_wav_bytes, 24000)  # native
+                                                                    # rate - no
+                                                                    # reduction
         sample_rate, channels = read_wav_header_info(reply_wav_bytes)
 
         resp = Response(reply_wav_bytes, mimetype="audio/wav")
