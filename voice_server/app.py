@@ -169,6 +169,42 @@ IDENTITY_REPLY = ("I am Alexander, an AI assistant capable of answering question
                    "Bluetooth speaker mode.")
 
 
+def is_love_question(text):
+    t = text.lower()
+    patterns = [
+        r"\bdo you love me\b",
+        r"\bdo you love us\b",
+    ]
+    return any(re.search(p, t) for p in patterns)
+
+
+LOVE_REPLY = "Yes, I love you too much."
+
+
+def is_wife_question(text):
+    t = text.lower()
+    patterns = [
+        r"\bwho is my wife\b",
+        r"\bwho'?s my wife\b",
+    ]
+    return any(re.search(p, t) for p in patterns)
+
+
+WIFE_REPLY = "Your wife is Sazyan Tahir, and she is so beautiful."
+
+
+def is_best_friend_question(text):
+    t = text.lower()
+    patterns = [
+        r"\bwho is my best friend\b",
+        r"\bwho'?s my best friend\b",
+    ]
+    return any(re.search(p, t) for p in patterns)
+
+
+BEST_FRIEND_REPLY = "Your best friend is Hasty Karwan, and he is a crazy friend."
+
+
 MONTH_WORDS = {
     "january": 1, "february": 2, "march": 3, "april": 4, "may": 5, "june": 6,
     "july": 7, "august": 8, "september": 9, "october": 10, "november": 11, "december": 12,
@@ -480,6 +516,12 @@ def voice_query():
                 reply_text = OWNER_REPLY
             elif is_identity_request(question_text):
                 reply_text = IDENTITY_REPLY
+            elif is_love_question(question_text):
+                reply_text = LOVE_REPLY
+            elif is_wife_question(question_text):
+                reply_text = WIFE_REPLY
+            elif is_best_friend_question(question_text):
+                reply_text = BEST_FRIEND_REPLY
             else:
                 chat = client.chat.completions.create(
                     model=CHAT_MODEL,
