@@ -169,6 +169,85 @@ IDENTITY_REPLY = ("I am Alexander, an AI assistant capable of answering question
                    "Bluetooth speaker mode.")
 
 
+MONTH_WORDS = {
+    "january": 1, "february": 2, "march": 3, "april": 4, "may": 5, "june": 6,
+    "july": 7, "august": 8, "september": 9, "october": 10, "november": 11, "december": 12,
+}
+
+DAY_WORDS = {
+    "first": 1, "second": 2, "third": 3, "fourth": 4, "fifth": 5, "sixth": 6,
+    "seventh": 7, "eighth": 8, "ninth": 9, "tenth": 10, "eleventh": 11,
+    "twelfth": 12, "thirteenth": 13, "fourteenth": 14, "fifteenth": 15,
+    "sixteenth": 16, "seventeenth": 17, "eighteenth": 18, "nineteenth": 19,
+    "twentieth": 20, "thirtieth": 30,
+    "one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6,
+    "seven": 7, "eight": 8, "nine": 9, "ten": 10, "eleven": 11, "twelve": 12,
+    "thirteen": 13, "fourteen": 14, "fifteen": 15, "sixteen": 16,
+    "seventeen": 17, "eighteen": 18, "nineteen": 19, "twenty": 20, "thirty": 30,
+}
+
+
+def _parse_day_number(text_fragment):
+    """Parses a day number from either digits ('7', '22nd') or words
+    ('seventh', 'twenty two') - Whisper transcribes numbers
+    inconsistently, so both forms need to work."""
+    m = re.search(r"\b(\d{1,2})(?:st|nd|rd|th)?\b", text_fragment)
+    if m:
+        return int(m.group(1))
+    m = re.search(r"\b(twenty|thirty)[\s-](\w+)\b", text_fragment)
+    if m and m.group(2) in DAY_WORDS:
+        return DAY_WORDS[m.group(1)] + DAY_WORDS[m.group(2)]
+    for word, num in DAY_WORDS.items():
+        if re.search(rf"\b{word}\b", text_fragment):
+            return num
+    return None
+
+
+def parse_reminder_request(text):
+    """Checks whether the question is asking to be reminded of
+    something on a specific date (e.g. "remind me of Valentine's Day
+    on 7 October", "I have a meeting on December 22"). Returns
+    (month, day, label) if so, else None. This is a specific-date
+    reminder, distinct from the daily-recurring alarm."""
+    t = text.lower()
+    if "remind" not in t and "i have" not in t:
+        return None
+
+    month = None
+    month_match = None
+    for word, num in MONTH_WORDS.items():
+        idx = t.find(word)
+        if idx != -1:
+            month = num
+            month_match = word
+            break
+    if month is None:
+        return None
+
+    # Look for the day number near the month word (either side of it).
+    month_idx = t.find(month_match)
+    before = t[max(0, month_idx - 15):month_idx]
+    after = t[month_idx + len(month_match):month_idx + len(month_match) + 15]
+    day = _parse_day_number(before) or _parse_day_number(after)
+    if day is None or not (1 <= day <= 31):
+        return None
+
+    # Extract a short label - whatever comes between "remind me" (or
+    # "i have") and "on", falling back to a generic label.
+    label = None
+    m = re.search(r"remind me (?:to |of |about )?(.+?)\s+on\s+", t)
+    if m:
+        label = m.group(1).strip()
+    else:
+        m = re.search(r"i have (.+?)\s+on\s+", t)
+        if m:
+            label = m.group(1).strip()
+    if not label:
+        label = "reminder"
+    label = label.strip(" .,")
+    return (month, day, label[:40].title())
+
+
 def parse_cancel_request(text):
     """Checks whether the question is asking to remove/cancel a
     running timer or alarm (e.g. "remove the alarm", "cancel the
@@ -368,15 +447,23 @@ def voice_query():
         alarm_hour = None
         alarm_minute = None
         cancel_target = None
+        reminder_month = None
+        reminder_day = None
+        reminder_label = None
         if not await_followup:
             print(f">>> Device time header = '{device_time}', looks like a time question = {is_time_request(question_text)}", flush=True)
             cancel_target = parse_cancel_request(question_text)
-            timer_seconds = parse_timer_request(question_text) if not cancel_target else None
-            alarm_request = parse_alarm_request(question_text) if not timer_seconds and not cancel_target else None
+            reminder_request = parse_reminder_request(question_text) if not cancel_target else None
+            timer_seconds = parse_timer_request(question_text) if not cancel_target and not reminder_request else None
+            alarm_request = parse_alarm_request(question_text) if not timer_seconds and not cancel_target and not reminder_request else None
             if cancel_target == "timer":
                 reply_text = "Timer cancelled."
             elif cancel_target == "alarm":
                 reply_text = "Alarm cancelled."
+            elif reminder_request:
+                reminder_month, reminder_day, reminder_label = reminder_request
+                suffix = "th" if 11 <= reminder_day % 100 <= 13 else {1: "st", 2: "nd", 3: "rd"}.get(reminder_day % 10, "th")
+                reply_text = f"Reminder set for {MONTH_NAMES[reminder_month]} {reminder_day}{suffix}: {reminder_label}."
             elif timer_seconds:
                 reply_text = f"Timer set for {describe_duration(timer_seconds)}."
             elif alarm_request:
@@ -426,6 +513,10 @@ def voice_query():
         resp.headers["X-Set-Alarm-Minute"] = str(alarm_minute) if alarm_minute is not None else "0"
         resp.headers["X-Cancel-Timer"] = "1" if cancel_target == "timer" else "0"
         resp.headers["X-Cancel-Alarm"] = "1" if cancel_target == "alarm" else "0"
+        resp.headers["X-Set-Reminder"] = "1" if reminder_month is not None else "0"
+        resp.headers["X-Reminder-Month"] = str(reminder_month) if reminder_month is not None else "0"
+        resp.headers["X-Reminder-Day"] = str(reminder_day) if reminder_day is not None else "0"
+        resp.headers["X-Reminder-Label"] = urllib.parse.quote(reminder_label) if reminder_label else ""
         return resp
 
     except Exception as e:
