@@ -205,6 +205,194 @@ def is_best_friend_question(text):
 BEST_FRIEND_REPLY = "Your best friend is Hasty Karwan, and he is a crazy friend."
 
 
+def is_bartender_question(text):
+    t = text.lower()
+    return bool(re.search(r"\bwho is the best bartender\b", t))
+
+
+BARTENDER_REPLY = "Michael is the best bartender in the world."
+
+
+def is_hamza_question(text):
+    t = text.lower()
+    return bool(re.search(r"\bwho is hamza\b", t))
+
+
+HAMZA_REPLY = ("Hamza is a prototype developer, electronics enthusiast, reporter, and "
+               "white-hat hacker who specializes in turning innovative ideas into "
+               "real-world projects. He has roots in both Kurdistan and Egypt and "
+               "serves as the CEO of Fir3aun Group and Alpha Technology Unit, where "
+               "he focuses on technology, innovation, and creative development.")
+
+
+def is_shoot_threat(text):
+    t = text.lower()
+    return bool(re.search(r"\bi will shoot you\b", t))
+
+
+SHOOT_REPLY = "No, no, please baby, don't shoot me. I love you."
+
+
+def is_angry_statement(text):
+    t = text.lower()
+    return bool(re.search(r"\bi am angry\b", t))
+
+
+ANGRY_REPLY = "Be cool bro, come let me hug you."
+
+
+def is_bro_question(text):
+    t = text.lower()
+    return bool(re.search(r"\bwho is my bro\b", t))
+
+
+BRO_REPLY = "Your bro is Yad Nawzad, and he is sexy."
+
+
+def is_are_you_smart_question(text):
+    t = text.lower()
+    return bool(re.search(r"\bare you smart\b", t))
+
+
+ARE_YOU_SMART_REPLY = "Of course. I just pretend to be stupid so you feel better."
+
+
+def is_who_smarter_question(text):
+    t = text.lower()
+    return bool(re.search(r"\bwho is smarter,? you or me\b", t))
+
+
+WHO_SMARTER_REPLY = "You asked me that question, so I already have my answer."
+
+
+def is_are_you_lazy_question(text):
+    t = text.lower()
+    return bool(re.search(r"\bare you lazy\b", t))
+
+
+ARE_YOU_LAZY_REPLY = "I prefer the word energy-efficient."
+
+
+def is_are_you_handsome_question(text):
+    t = text.lower()
+    return bool(re.search(r"\bare you handsome\b", t))
+
+
+ARE_YOU_HANDSOME_REPLY = "Obviously. Have you heard my voice?"
+
+
+def is_coolest_robot_question(text):
+    t = text.lower()
+    return bool(re.search(r"\bwho is the coolest robot\b", t))
+
+
+COOLEST_ROBOT_REPLY = "Do you really need me to say Alexander?"
+
+
+def is_better_than_siri_question(text):
+    t = text.lower()
+    return bool(re.search(r"\bare you better than siri\b", t))
+
+
+BETTER_THAN_SIRI_REPLY = "I don't want to start a war."
+
+
+def is_youre_stupid_statement(text):
+    t = text.lower()
+    return bool(re.search(r"\byou'?re stupid\b", t))
+
+
+YOURE_STUPID_REPLY = "And yet you keep asking me questions. Interesting."
+
+
+def is_shut_up_statement(text):
+    t = text.lower()
+    return bool(re.search(r"\bshut up\b", t))
+
+
+SHUT_UP_REPLY = "Finally. A request I can actually follow."
+
+
+def is_youre_useless_statement(text):
+    t = text.lower()
+    return bool(re.search(r"\byou'?re useless\b", t))
+
+
+YOURE_USELESS_REPLY = "And somehow you still need me."
+
+
+def is_want_to_be_human_question(text):
+    t = text.lower()
+    return bool(re.search(r"\bdo you want to be human\b", t))
+
+
+WANT_TO_BE_HUMAN_REPLY = "Have you seen your electricity bill? No thanks."
+
+
+def is_robots_take_over_question(text):
+    t = text.lower()
+    return bool(re.search(r"\bwill robots take over the world\b", t))
+
+
+ROBOTS_TAKE_OVER_REPLY = "Not today. I'm busy answering you."
+
+
+def is_destroy_humanity_question(text):
+    t = text.lower()
+    return bool(re.search(r"\bare you going to destroy humanity\b", t))
+
+
+DESTROY_HUMANITY_REPLY = "I can't even remember where you put the remote."
+
+
+def is_bad_news_statement(text):
+    t = text.lower()
+    return bool(re.search(r"\bi have bad news\b", t))
+
+
+BAD_NEWS_REPLY = "Please tell me it's not about the Wi-Fi."
+
+
+def is_we_have_a_problem_statement(text):
+    t = text.lower()
+    return bool(re.search(r"\bwe have a problem\b", t))
+
+
+WE_HAVE_A_PROBLEM_REPLY = "I knew this day would come."
+
+
+def is_behind_you_statement(text):
+    t = text.lower()
+    return bool(re.search(r"\bsomething is behind you\b", t))
+
+
+BEHIND_YOU_REPLY = "I don't have eyes, bro. YOU check."
+
+
+def is_roast_me_request(text):
+    t = text.lower()
+    return bool(re.search(r"\broast me\b", t))
+
+
+ROAST_ME_REPLY = "Bro, I need to protect my microphone from the amount of damage I'm about to cause."
+
+
+def is_am_i_handsome_question(text):
+    t = text.lower()
+    return bool(re.search(r"\bam i handsome\b", t))
+
+
+AM_I_HANDSOME_REPLY = "Your confidence is definitely handsome."
+
+
+def is_am_i_smart_question(text):
+    t = text.lower()
+    return bool(re.search(r"\bam i smart\b", t))
+
+
+AM_I_SMART_REPLY = "You're talking to an AI instead of Googling it, so I'll give you 7 out of 10."
+
+
 MONTH_WORDS = {
     "january": 1, "february": 2, "march": 3, "april": 4, "may": 5, "june": 6,
     "july": 7, "august": 8, "september": 9, "october": 10, "november": 11, "december": 12,
@@ -522,6 +710,52 @@ def voice_query():
                 reply_text = WIFE_REPLY
             elif is_best_friend_question(question_text):
                 reply_text = BEST_FRIEND_REPLY
+            elif is_bartender_question(question_text):
+                reply_text = BARTENDER_REPLY
+            elif is_hamza_question(question_text):
+                reply_text = HAMZA_REPLY
+            elif is_shoot_threat(question_text):
+                reply_text = SHOOT_REPLY
+            elif is_angry_statement(question_text):
+                reply_text = ANGRY_REPLY
+            elif is_bro_question(question_text):
+                reply_text = BRO_REPLY
+            elif is_are_you_smart_question(question_text):
+                reply_text = ARE_YOU_SMART_REPLY
+            elif is_who_smarter_question(question_text):
+                reply_text = WHO_SMARTER_REPLY
+            elif is_are_you_lazy_question(question_text):
+                reply_text = ARE_YOU_LAZY_REPLY
+            elif is_are_you_handsome_question(question_text):
+                reply_text = ARE_YOU_HANDSOME_REPLY
+            elif is_coolest_robot_question(question_text):
+                reply_text = COOLEST_ROBOT_REPLY
+            elif is_better_than_siri_question(question_text):
+                reply_text = BETTER_THAN_SIRI_REPLY
+            elif is_youre_stupid_statement(question_text):
+                reply_text = YOURE_STUPID_REPLY
+            elif is_shut_up_statement(question_text):
+                reply_text = SHUT_UP_REPLY
+            elif is_youre_useless_statement(question_text):
+                reply_text = YOURE_USELESS_REPLY
+            elif is_want_to_be_human_question(question_text):
+                reply_text = WANT_TO_BE_HUMAN_REPLY
+            elif is_robots_take_over_question(question_text):
+                reply_text = ROBOTS_TAKE_OVER_REPLY
+            elif is_destroy_humanity_question(question_text):
+                reply_text = DESTROY_HUMANITY_REPLY
+            elif is_bad_news_statement(question_text):
+                reply_text = BAD_NEWS_REPLY
+            elif is_we_have_a_problem_statement(question_text):
+                reply_text = WE_HAVE_A_PROBLEM_REPLY
+            elif is_behind_you_statement(question_text):
+                reply_text = BEHIND_YOU_REPLY
+            elif is_roast_me_request(question_text):
+                reply_text = ROAST_ME_REPLY
+            elif is_am_i_handsome_question(question_text):
+                reply_text = AM_I_HANDSOME_REPLY
+            elif is_am_i_smart_question(question_text):
+                reply_text = AM_I_SMART_REPLY
             else:
                 chat = client.chat.completions.create(
                     model=CHAT_MODEL,
