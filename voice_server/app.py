@@ -205,15 +205,13 @@ def is_bartender_question(text):
     return fuzzy_match(text, [["bartender", "bartenders"]])
 
 
-BARTENDER_REPLY = "Michael is the best bartender in the world."
+BARTENDER_REPLY = "Michelle is the best bartender in the world."
 
 
 def is_fuck_question(text):
     return fuzzy_match(text, [["fuck"]])
 
-
 FUCK_REPLY = "of cours baby my ass is ready for you."
-
 
 
 def is_hamza_question(text):
@@ -248,7 +246,7 @@ BRO_REPLY = "Your bro is Yad Farhad, and he is sexy."
 
 
 def is_love_more_question(text):
-    return fuzzy_match(text, [["love"], ["more"], ["sazyan"]])
+    return fuzzy_match(text, [["love"], ["more"]])
 
 
 LOVE_MORE_REPLY = "Of course baby, I love more, who is Sazyan?"
