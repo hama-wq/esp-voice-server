@@ -208,6 +208,14 @@ def is_bartender_question(text):
 BARTENDER_REPLY = "Michael is the best bartender in the world."
 
 
+def is_fuck_question(text):
+    return fuzzy_match(text, [["fuck"]])
+
+
+FUCK_REPLY = "of cours baby my ass is ready for you."
+
+
+
 def is_hamza_question(text):
     return fuzzy_match(text, [["hamza"]])
 
@@ -215,8 +223,7 @@ def is_hamza_question(text):
 HAMZA_REPLY = ("Hamza is a prototype developer, electronics enthusiast, reporter, and "
                "white-hat hacker who specializes in turning innovative ideas into "
                "real-world projects. He has roots in both Kurdistan and Egypt and "
-               "serves as the CEO of Fir3aun Group and Alpha Technology Unit, where "
-               "he focuses on technology, innovation, and creative development.")
+               "he is the CEO of Fir3aun Group and Alpha Technology Unit.")
 
 
 def is_shoot_threat(text):
@@ -237,7 +244,14 @@ def is_bro_question(text):
     return fuzzy_match(text, [["who"], ["bro"]])
 
 
-BRO_REPLY = "Your bro is Yad Nawzad, and he is sexy."
+BRO_REPLY = "Your bro is Yad Farhad, and he is sexy."
+
+
+def is_love_more_question(text):
+    return fuzzy_match(text, [["love"], ["more"], ["sazyan"]])
+
+
+LOVE_MORE_REPLY = "Of course baby, I love more, who is Sazyan?"
 
 
 def is_are_you_smart_question(text):
@@ -685,6 +699,8 @@ def voice_query():
                 reply_text = BEST_FRIEND_REPLY
             elif is_bartender_question(question_text):
                 reply_text = BARTENDER_REPLY
+            elif is_fuck_question(question_text):
+                reply_text = FUCK_REPLY
             elif is_hamza_question(question_text):
                 reply_text = HAMZA_REPLY
             elif is_shoot_threat(question_text):
@@ -693,6 +709,8 @@ def voice_query():
                 reply_text = ANGRY_REPLY
             elif is_bro_question(question_text):
                 reply_text = BRO_REPLY
+            elif is_love_more_question(question_text):
+                reply_text = LOVE_MORE_REPLY
             elif is_are_you_smart_question(question_text):
                 reply_text = ARE_YOU_SMART_REPLY
             elif is_who_smarter_question(question_text):
