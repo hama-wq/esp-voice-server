@@ -134,19 +134,32 @@ def format_spoken_time(time_str):
     return f"{hour12}:{minute:02d} {period}"
 
 
+def fuzzy_match(text, concept_groups):
+    """Checks that EVERY concept group has at least one matching word
+    present in the text - regardless of word order, missing small
+    words ("the", "to"), or minor suffix differences. Each concept
+    group is a list of acceptable word variants for one idea (e.g.
+    ["news", "new"] for the concept "news", since Whisper sometimes
+    drops the trailing s). Much more forgiving of natural speech
+    variation than requiring an exact phrase."""
+    t = text.lower()
+    for variants in concept_groups:
+        if not any(re.search(rf"\b{v}\b", t) for v in variants):
+            return False
+    return True
+
+
 def is_owner_request(text):
     """Checks whether the question is asking who owns/built/made the
     device. Fixed answer, not left to GPT, so it's always exact."""
-    t = text.lower()
-    patterns = [
-        r"\bwho is your owner\b",
-        r"\bwho'?s your owner\b",
-        r"\bwho (built|build) you\b",
-        r"\bwho (made|make) you\b",
-        r"\bwho (created|create) you\b",
-        r"\bwho owns you\b",
+    alternatives = [
+        [["your"], ["owner"]],
+        [["built", "build"], ["you"]],
+        [["made", "make"], ["you"]],
+        [["created", "create"], ["you"]],
+        [["owns", "own"], ["you"]],
     ]
-    return any(re.search(p, t) for p in patterns)
+    return any(fuzzy_match(text, group) for group in alternatives)
 
 
 OWNER_REPLY = "My owner is Hamza Ahmad Ali, the CEO of Fir3aun Group and Alpha Technology Unit."
@@ -155,13 +168,11 @@ OWNER_REPLY = "My owner is Hamza Ahmad Ali, the CEO of Fir3aun Group and Alpha T
 def is_identity_request(text):
     """Checks whether the question is asking who/what the assistant
     is. Fixed answer, not left to GPT, so it's always exact."""
-    t = text.lower()
-    patterns = [
-        r"\bwho are you\b",
-        r"\bwhat is your name\b",
-        r"\bwhat'?s your name\b",
+    alternatives = [
+        [["who"], ["are"], ["you"]],
+        [["name"], ["your"]],
     ]
-    return any(re.search(p, t) for p in patterns)
+    return any(fuzzy_match(text, group) for group in alternatives)
 
 
 IDENTITY_REPLY = ("I am Alexander, an AI assistant capable of answering questions, "
@@ -170,52 +181,35 @@ IDENTITY_REPLY = ("I am Alexander, an AI assistant capable of answering question
 
 
 def is_love_question(text):
-    t = text.lower()
-    patterns = [
-        r"\bdo you love me\b",
-        r"\bdo you love us\b",
-    ]
-    return any(re.search(p, t) for p in patterns)
+    return fuzzy_match(text, [["love"], ["me", "us"]])
 
 
 LOVE_REPLY = "Yes, I love you too much."
 
 
 def is_wife_question(text):
-    t = text.lower()
-    patterns = [
-        r"\bwho is my wife\b",
-        r"\bwho'?s my wife\b",
-    ]
-    return any(re.search(p, t) for p in patterns)
+    return fuzzy_match(text, [["wife"]])
 
 
 WIFE_REPLY = "Your wife is Sazyan Tahir, and she is so beautiful."
 
 
 def is_best_friend_question(text):
-    t = text.lower()
-    patterns = [
-        r"\bwho is my best friend\b",
-        r"\bwho'?s my best friend\b",
-    ]
-    return any(re.search(p, t) for p in patterns)
+    return fuzzy_match(text, [["best"], ["friend", "friends"]])
 
 
 BEST_FRIEND_REPLY = "Your best friend is Hasty Karwan, and he is a crazy friend."
 
 
 def is_bartender_question(text):
-    t = text.lower()
-    return bool(re.search(r"\bwho is the best bartender\b", t))
+    return fuzzy_match(text, [["bartender", "bartenders"]])
 
 
 BARTENDER_REPLY = "Michael is the best bartender in the world."
 
 
 def is_hamza_question(text):
-    t = text.lower()
-    return bool(re.search(r"\bwho is hamza\b", t))
+    return fuzzy_match(text, [["hamza"]])
 
 
 HAMZA_REPLY = ("Hamza is a prototype developer, electronics enthusiast, reporter, and "
@@ -226,168 +220,147 @@ HAMZA_REPLY = ("Hamza is a prototype developer, electronics enthusiast, reporter
 
 
 def is_shoot_threat(text):
-    t = text.lower()
-    return bool(re.search(r"\bi will shoot you\b", t))
+    return fuzzy_match(text, [["shoot", "shot"]])
 
 
 SHOOT_REPLY = "No, no, please baby, don't shoot me. I love you."
 
 
 def is_angry_statement(text):
-    t = text.lower()
-    return bool(re.search(r"\bi am angry\b", t))
+    return fuzzy_match(text, [["angry", "anger"]])
 
 
 ANGRY_REPLY = "Be cool bro, come let me hug you."
 
 
 def is_bro_question(text):
-    t = text.lower()
-    return bool(re.search(r"\bwho is my bro\b", t))
+    return fuzzy_match(text, [["who"], ["bro"]])
 
 
 BRO_REPLY = "Your bro is Yad Nawzad, and he is sexy."
 
 
 def is_are_you_smart_question(text):
-    t = text.lower()
-    return bool(re.search(r"\bare you smart\b", t))
+    return fuzzy_match(text, [["smart"], ["are"], ["you"]])
 
 
 ARE_YOU_SMART_REPLY = "Of course. I just pretend to be stupid so you feel better."
 
 
 def is_who_smarter_question(text):
-    t = text.lower()
-    return bool(re.search(r"\bwho is smarter,? you or me\b", t))
+    return fuzzy_match(text, [["smarter"]])
 
 
 WHO_SMARTER_REPLY = "You asked me that question, so I already have my answer."
 
 
 def is_are_you_lazy_question(text):
-    t = text.lower()
-    return bool(re.search(r"\bare you lazy\b", t))
+    return fuzzy_match(text, [["lazy"], ["you"]])
 
 
 ARE_YOU_LAZY_REPLY = "I prefer the word energy-efficient."
 
 
 def is_are_you_handsome_question(text):
-    t = text.lower()
-    return bool(re.search(r"\bare you handsome\b", t))
+    return fuzzy_match(text, [["handsome"], ["are"], ["you"]])
 
 
 ARE_YOU_HANDSOME_REPLY = "Obviously. Have you heard my voice?"
 
 
 def is_coolest_robot_question(text):
-    t = text.lower()
-    return bool(re.search(r"\bwho is the coolest robot\b", t))
+    return fuzzy_match(text, [["coolest"], ["robot"]])
 
 
 COOLEST_ROBOT_REPLY = "Do you really need me to say Alexander?"
 
 
 def is_better_than_siri_question(text):
-    t = text.lower()
-    return bool(re.search(r"\bare you better than siri\b", t))
+    return fuzzy_match(text, [["better"], ["siri"]])
 
 
 BETTER_THAN_SIRI_REPLY = "I don't want to start a war."
 
 
 def is_youre_stupid_statement(text):
-    t = text.lower()
-    return bool(re.search(r"\byou'?re stupid\b", t))
+    return fuzzy_match(text, [["stupid"], ["you"]])
 
 
 YOURE_STUPID_REPLY = "And yet you keep asking me questions. Interesting."
 
 
 def is_shut_up_statement(text):
-    t = text.lower()
-    return bool(re.search(r"\bshut up\b", t))
+    return fuzzy_match(text, [["shut"], ["up"]])
 
 
 SHUT_UP_REPLY = "Finally. A request I can actually follow."
 
 
 def is_youre_useless_statement(text):
-    t = text.lower()
-    return bool(re.search(r"\byou'?re useless\b", t))
+    return fuzzy_match(text, [["useless"], ["you"]])
 
 
 YOURE_USELESS_REPLY = "And somehow you still need me."
 
 
 def is_want_to_be_human_question(text):
-    t = text.lower()
-    return bool(re.search(r"\bdo you want to be human\b", t))
+    return fuzzy_match(text, [["human"], ["want"]])
 
 
 WANT_TO_BE_HUMAN_REPLY = "Have you seen your electricity bill? No thanks."
 
 
 def is_robots_take_over_question(text):
-    t = text.lower()
-    return bool(re.search(r"\bwill robots take over the world\b", t))
+    return fuzzy_match(text, [["robots", "robot"], ["over"]])
 
 
 ROBOTS_TAKE_OVER_REPLY = "Not today. I'm busy answering you."
 
 
 def is_destroy_humanity_question(text):
-    t = text.lower()
-    return bool(re.search(r"\bare you going to destroy humanity\b", t))
+    return fuzzy_match(text, [["destroy"], ["humanity"]])
 
 
 DESTROY_HUMANITY_REPLY = "I can't even remember where you put the remote."
 
 
 def is_bad_news_statement(text):
-    t = text.lower()
-    return bool(re.search(r"\bi have bad news\b", t))
+    return fuzzy_match(text, [["bad"], ["news", "new"]])
 
 
 BAD_NEWS_REPLY = "Please tell me it's not about the Wi-Fi."
 
 
 def is_we_have_a_problem_statement(text):
-    t = text.lower()
-    return bool(re.search(r"\bwe have a problem\b", t))
+    return fuzzy_match(text, [["problem", "problems"]])
 
 
 WE_HAVE_A_PROBLEM_REPLY = "I knew this day would come."
 
 
 def is_behind_you_statement(text):
-    t = text.lower()
-    return bool(re.search(r"\bsomething is behind you\b", t))
+    return fuzzy_match(text, [["behind"], ["you"]])
 
 
 BEHIND_YOU_REPLY = "I don't have eyes, bro. YOU check."
 
 
 def is_roast_me_request(text):
-    t = text.lower()
-    return bool(re.search(r"\broast me\b", t))
+    return fuzzy_match(text, [["roast"]])
 
 
 ROAST_ME_REPLY = "Bro, I need to protect my microphone from the amount of damage I'm about to cause."
 
 
 def is_am_i_handsome_question(text):
-    t = text.lower()
-    return bool(re.search(r"\bam i handsome\b", t))
+    return fuzzy_match(text, [["handsome"], ["am"], ["i"]])
 
 
 AM_I_HANDSOME_REPLY = "Your confidence is definitely handsome."
 
 
 def is_am_i_smart_question(text):
-    t = text.lower()
-    return bool(re.search(r"\bam i smart\b", t))
+    return fuzzy_match(text, [["smart"], ["am"], ["i"]])
 
 
 AM_I_SMART_REPLY = "You're talking to an AI instead of Googling it, so I'll give you 7 out of 10."
