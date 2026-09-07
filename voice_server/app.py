@@ -205,13 +205,7 @@ def is_bartender_question(text):
     return fuzzy_match(text, [["bartender", "bartenders"]])
 
 
-BARTENDER_REPLY = "Michelle is the best bartender in the world."
-
-
-def is_fuck_question(text):
-    return fuzzy_match(text, [["fuck"]])
-
-FUCK_REPLY = "of cours baby my ass is ready for you."
+BARTENDER_REPLY = "Michael is the best bartender in the world."
 
 
 def is_hamza_question(text):
@@ -362,6 +356,46 @@ def is_roast_me_request(text):
 
 
 ROAST_ME_REPLY = "Bro, I need to protect my microphone from the amount of damage I'm about to cause."
+
+
+def is_play_song_request(text):
+    return fuzzy_match(text, [["play"], ["song", "music"]])
+
+
+PLAY_SONG_REPLY = "Playing your song."
+
+
+def is_change_song_request(text):
+    alternatives = [
+        [["change"], ["song"]],
+        [["next"], ["song"]],
+        [["skip"], ["song"]],
+    ]
+    return any(fuzzy_match(text, group) for group in alternatives)
+
+
+CHANGE_SONG_REPLY = "Changing the song."
+
+
+def is_stop_song_request(text):
+    return fuzzy_match(text, [["stop"], ["song", "music"]])
+
+
+STOP_SONG_REPLY = "Song stopped."
+
+
+def is_volume_up_request(text):
+    return fuzzy_match(text, [["volume"], ["up"]])
+
+
+VOLUME_UP_REPLY = "Volume up."
+
+
+def is_volume_down_request(text):
+    return fuzzy_match(text, [["volume"], ["down"]])
+
+
+VOLUME_DOWN_REPLY = "Volume down."
 
 
 def is_am_i_handsome_question(text):
@@ -659,6 +693,11 @@ def voice_query():
         reminder_month = None
         reminder_day = None
         reminder_label = None
+        play_song = False
+        change_song = False
+        stop_song = False
+        volume_up = False
+        volume_down = False
         if not await_followup:
             print(f">>> Device time header = '{device_time}', looks like a time question = {is_time_request(question_text)}", flush=True)
             cancel_target = parse_cancel_request(question_text)
@@ -679,6 +718,21 @@ def voice_query():
                 alarm_hour, alarm_minute = alarm_request
                 spoken = format_spoken_time(f"{alarm_hour:02d}:{alarm_minute:02d}:00")
                 reply_text = f"Alarm set for {spoken}."
+            elif is_change_song_request(question_text):
+                change_song = True
+                reply_text = CHANGE_SONG_REPLY
+            elif is_stop_song_request(question_text):
+                stop_song = True
+                reply_text = STOP_SONG_REPLY
+            elif is_play_song_request(question_text):
+                play_song = True
+                reply_text = PLAY_SONG_REPLY
+            elif is_volume_up_request(question_text):
+                volume_up = True
+                reply_text = VOLUME_UP_REPLY
+            elif is_volume_down_request(question_text):
+                volume_down = True
+                reply_text = VOLUME_DOWN_REPLY
             elif is_time_request(question_text) and device_time:
                 spoken = format_spoken_time(device_time)
                 reply_text = f"It's {spoken}." if spoken else "Sorry, I couldn't read the clock."
@@ -697,8 +751,6 @@ def voice_query():
                 reply_text = BEST_FRIEND_REPLY
             elif is_bartender_question(question_text):
                 reply_text = BARTENDER_REPLY
-            elif is_fuck_question(question_text):
-                reply_text = FUCK_REPLY
             elif is_hamza_question(question_text):
                 reply_text = HAMZA_REPLY
             elif is_shoot_threat(question_text):
@@ -782,6 +834,11 @@ def voice_query():
         resp.headers["X-Reminder-Month"] = str(reminder_month) if reminder_month is not None else "0"
         resp.headers["X-Reminder-Day"] = str(reminder_day) if reminder_day is not None else "0"
         resp.headers["X-Reminder-Label"] = urllib.parse.quote(reminder_label) if reminder_label else ""
+        resp.headers["X-Play-Song"] = "1" if play_song else "0"
+        resp.headers["X-Change-Song"] = "1" if change_song else "0"
+        resp.headers["X-Stop-Song"] = "1" if stop_song else "0"
+        resp.headers["X-Volume-Up"] = "1" if volume_up else "0"
+        resp.headers["X-Volume-Down"] = "1" if volume_down else "0"
         return resp
 
     except Exception as e:
