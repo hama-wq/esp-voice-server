@@ -718,21 +718,6 @@ def voice_query():
                 alarm_hour, alarm_minute = alarm_request
                 spoken = format_spoken_time(f"{alarm_hour:02d}:{alarm_minute:02d}:00")
                 reply_text = f"Alarm set for {spoken}."
-            elif is_change_song_request(question_text):
-                change_song = True
-                reply_text = CHANGE_SONG_REPLY
-            elif is_stop_song_request(question_text):
-                stop_song = True
-                reply_text = STOP_SONG_REPLY
-            elif is_play_song_request(question_text):
-                play_song = True
-                reply_text = PLAY_SONG_REPLY
-            elif is_volume_up_request(question_text):
-                volume_up = True
-                reply_text = VOLUME_UP_REPLY
-            elif is_volume_down_request(question_text):
-                volume_down = True
-                reply_text = VOLUME_DOWN_REPLY
             elif is_time_request(question_text) and device_time:
                 spoken = format_spoken_time(device_time)
                 reply_text = f"It's {spoken}." if spoken else "Sorry, I couldn't read the clock."
