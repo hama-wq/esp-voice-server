@@ -824,6 +824,8 @@ def voice_query():
         resp.headers["X-Stop-Song"] = "1" if stop_song else "0"
         resp.headers["X-Volume-Up"] = "1" if volume_up else "0"
         resp.headers["X-Volume-Down"] = "1" if volume_down else "0"
+        resp.headers["X-Heard-Text"] = urllib.parse.quote(question_text[:200]) if question_text else ""
+        resp.headers["X-Reply-Text"] = urllib.parse.quote(reply_text[:200]) if reply_text else ""
         return resp
 
     except Exception as e:
