@@ -532,10 +532,28 @@ def parse_alarm_request(text):
         if m:
             hour, minute, ampm = int(m.group(1)), int(m.group(2)), m.group(3)
         else:
-            # Hour only, no minutes mentioned - defaults to :00.
+            # Hour only, digits, with am/pm.
             m = re.search(r"\b(\d{1,2})\s*(a\.?m\.?|p\.?m\.?)\b", t)
             if m:
                 hour, minute, ampm = int(m.group(1)), 0, m.group(2)
+            else:
+                # Hour only, digits, NO am/pm given at all (e.g. "alarm
+                # for 7", "set alarm at 14") - accept the number as-is
+                # rather than failing to parse entirely.
+                m = re.search(r"\balarm\b.*?\b(\d{1,2})\b", t)
+                if m:
+                    hour, minute = int(m.group(1)), 0
+                else:
+                    # Hour only, WORD form ("seven", "at seven o'clock") -
+                    # Whisper doesn't always transcribe numbers as digits.
+                    m = re.search(r"\balarm\b.*?\b(a\.?m\.?|p\.?m\.?)?", t)
+                    for word, num in DAY_WORDS.items():
+                        if 1 <= num <= 12 and re.search(rf"\b{word}\b", t):
+                            hour, minute = num, 0
+                            ampm_match = re.search(r"\b(a\.?m\.?|p\.?m\.?)\b", t)
+                            if ampm_match:
+                                ampm = ampm_match.group(1)
+                            break
 
     if hour is None:
         return None
@@ -572,6 +590,23 @@ def parse_timer_request(text):
         else:
             total_seconds += num
         found = True
+
+    if not found:
+        # Word-form numbers ("set a timer for ten minutes") - Whisper
+        # doesn't always transcribe numbers as digits.
+        for match in re.finditer(r"\b(\w+)\s+(hours?|hrs?|minutes?|mins?|seconds?|secs?)\b", t):
+            word = match.group(1)
+            unit = match.group(2).rstrip("s")
+            if word in DAY_WORDS:
+                num = DAY_WORDS[word]
+                if unit in ("hour", "hr"):
+                    total_seconds += num * 3600
+                elif unit in ("minute", "min"):
+                    total_seconds += num * 60
+                else:
+                    total_seconds += num
+                found = True
+
     return total_seconds if found and total_seconds > 0 else None
 
 
