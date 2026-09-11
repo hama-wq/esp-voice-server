@@ -881,47 +881,6 @@ def alarm_sound():
     return resp
 
 
-# Fixed responses for the touch sensor - no recording/transcription
-# needed, since the touch pattern itself (double-tap, triple-tap,
-# long touch) already tells us exactly which one to say.
-TOUCH_RESPONSES = {
-    "double": "What you want, you are making me angry. Don't touch me again.",
-    "triple": "I told you don't touch me again. OK now I understand why you don't get it, because you are stupid.",
-    "quadruple": "Interesting.",
-    "long": "Yes daddy, go faster, you are the best daddy, faster, faster.",
-}
-
-
-@app.route("/touch-response", methods=["GET"])
-def touch_response():
-    touch_type = request.args.get("type", "")
-    reply_text = TOUCH_RESPONSES.get(touch_type)
-    if not reply_text:
-        return Response("Unknown touch type - use ?type=double, triple, quadruple, or long", status=400)
-
-    try:
-        speech = client.audio.speech.create(
-            model=TTS_MODEL,
-            voice=TTS_VOICE,
-            input=reply_text,
-            response_format="wav",
-        )
-        reply_wav_bytes = speech.read()
-        reply_wav_bytes = downsample_wav(reply_wav_bytes, 24000)  # native rate
-        sample_rate, channels = read_wav_header_info(reply_wav_bytes)
-
-        resp = Response(reply_wav_bytes, mimetype="audio/wav")
-        resp.headers["X-Audio-Rate"] = str(sample_rate)
-        resp.headers["X-Audio-Channels"] = str(channels)
-        # Same header the main voice endpoint uses - lets the device
-        # cache this exact phrase and play it instantly after the
-        # first time, same as any other fixed answer.
-        resp.headers["X-Reply-Text"] = urllib.parse.quote(reply_text[:200])
-        return resp
-    except Exception as e:
-        return Response(f"Error: {str(e)}", status=500)
-
-
 @app.route("/", methods=["GET"])
 def health():
     return "Voice server is running."
