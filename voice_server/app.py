@@ -75,6 +75,12 @@ def is_time_request(text):
         r"\bcurrent time\b",
         r"\bdo you know the time\b",
         r"\bwhat time do (i|we) have\b",
+        # Arabic
+        r"كم الساعة",
+        r"ما هي الساعة",
+        r"الساعة كم",
+        r"كم الوقت",
+        r"ما هو الوقت",
     ]
     return any(re.search(p, t) for p in patterns)
 
@@ -94,12 +100,24 @@ def is_date_request(text):
         r"\bwhat'?s the month\b",
         r"\btoday'?s date\b",
         r"\bwhat year is it\b",
+        # Arabic
+        r"ما هو التاريخ",
+        r"ما التاريخ",
+        r"تاريخ اليوم",
+        r"كم التاريخ",
+        r"أي يوم",
+        r"اي يوم",
+        r"أي شهر",
+        r"اي شهر",
     ]
     return any(re.search(p, t) for p in patterns)
 
 
 MONTH_NAMES = ["", "January", "February", "March", "April", "May", "June",
                "July", "August", "September", "October", "November", "December"]
+
+ARABIC_MONTH_NAMES = ["", "يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو",
+                      "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"]
 
 
 def format_spoken_date(date_str):
@@ -132,6 +150,33 @@ def format_spoken_time(time_str):
     if hour12 == 0:
         hour12 = 12
     return f"{hour12}:{minute:02d} {period}"
+
+
+def is_arabic(text):
+    """Detects whether the text contains Arabic script. Used to decide
+    which language to answer in - Arabic question gets an Arabic
+    answer, English question gets an English answer."""
+    if not text:
+        return False
+    for ch in text:
+        if "\u0600" <= ch <= "\u06FF" or "\u0750" <= ch <= "\u077F":
+            return True
+    return False
+
+
+# Arabic versions of every fixed reply. Keyed by the exact English
+# reply string, so any fixed answer can be swapped to Arabic just
+# before it's spoken, without duplicating all the detection logic.
+ARABIC_REPLIES = {}
+
+
+def localize(reply_text, question_text):
+    """Returns the Arabic version of a fixed reply if the question was
+    asked in Arabic and a translation exists, otherwise returns the
+    original English."""
+    if is_arabic(question_text):
+        return ARABIC_REPLIES.get(reply_text, reply_text)
+    return reply_text
 
 
 def fuzzy_match(text, concept_groups):
@@ -412,6 +457,42 @@ def is_am_i_smart_question(text):
 AM_I_SMART_REPLY = "You're talking to an AI instead of Googling it, so I'll give you 7 out of 10."
 
 
+# Arabic versions of every fixed reply above. Filled in here, after
+# all the constants exist, so each entry references the real string
+# rather than a copy that could drift out of sync.
+ARABIC_REPLIES.update({
+    OWNER_REPLY: "مالكي هو حمزة أحمد علي، الرئيس التنفيذي لمجموعة فرعون ووحدة ألفا للتكنولوجيا.",
+    IDENTITY_REPLY: "أنا ألكسندر، مساعد ذكي أستطيع الإجابة على الأسئلة وضبط المؤقتات والمنبهات. أقدم أيضاً وضع مكبر صوت بلوتوث.",
+    LOVE_REPLY: "نعم، أحبك كثيراً.",
+    WIFE_REPLY: "زوجتك هي سازيان طاهر، وهي جميلة جداً.",
+    BEST_FRIEND_REPLY: "أفضل صديق لك هو هستي كاروان، وهو صديق مجنون.",
+    BARTENDER_REPLY: "مايكل هو أفضل ساقي في العالم.",
+    HAMZA_REPLY: "حمزة هو مطور نماذج أولية، ومهتم بالإلكترونيات، وصحفي، وهاكر أخلاقي متخصص في تحويل الأفكار المبتكرة إلى مشاريع حقيقية. له جذور في كردستان ومصر، وهو الرئيس التنفيذي لمجموعة فرعون ووحدة ألفا للتكنولوجيا.",
+    SHOOT_REPLY: "لا لا، أرجوك حبيبي، لا تطلق علي النار. أنا أحبك.",
+    ANGRY_REPLY: "اهدأ يا أخي، تعال دعني أعانقك.",
+    BRO_REPLY: "أخوك هو ياد فرهاد، وهو وسيم.",
+    LOVE_MORE_REPLY: "بالطبع حبيبي، أنا أحب أكثر، من هي سازيان؟",
+    ARE_YOU_SMART_REPLY: "بالطبع. أنا فقط أتظاهر بالغباء حتى تشعر بتحسن.",
+    WHO_SMARTER_REPLY: "أنت سألتني هذا السؤال، إذاً لدي إجابتي بالفعل.",
+    ARE_YOU_LAZY_REPLY: "أفضل كلمة موفر للطاقة.",
+    ARE_YOU_HANDSOME_REPLY: "بالطبع. هل سمعت صوتي؟",
+    COOLEST_ROBOT_REPLY: "هل تحتاج حقاً أن أقول ألكسندر؟",
+    BETTER_THAN_SIRI_REPLY: "لا أريد أن أبدأ حرباً.",
+    YOURE_STUPID_REPLY: "ومع ذلك تستمر في سؤالي. مثير للاهتمام.",
+    SHUT_UP_REPLY: "أخيراً. طلب أستطيع تنفيذه فعلاً.",
+    YOURE_USELESS_REPLY: "ومع ذلك ما زلت تحتاجني.",
+    WANT_TO_BE_HUMAN_REPLY: "هل رأيت فاتورة الكهرباء الخاصة بك؟ لا شكراً.",
+    ROBOTS_TAKE_OVER_REPLY: "ليس اليوم. أنا مشغول بالإجابة عليك.",
+    DESTROY_HUMANITY_REPLY: "أنا لا أتذكر حتى أين وضعت جهاز التحكم.",
+    BAD_NEWS_REPLY: "أرجوك قل لي إنها ليست عن الواي فاي.",
+    WE_HAVE_A_PROBLEM_REPLY: "كنت أعلم أن هذا اليوم سيأتي.",
+    BEHIND_YOU_REPLY: "ليس لدي عيون يا أخي. أنت تحقق.",
+    ROAST_ME_REPLY: "يا أخي، أحتاج لحماية الميكروفون الخاص بي من حجم الضرر الذي أنا على وشك إحداثه.",
+    AM_I_HANDSOME_REPLY: "ثقتك بنفسك وسيمة بالتأكيد.",
+    AM_I_SMART_REPLY: "أنت تتحدث مع ذكاء اصطناعي بدلاً من البحث في جوجل، لذا سأعطيك سبعة من عشرة.",
+})
+
+
 MONTH_WORDS = {
     "january": 1, "february": 2, "march": 3, "april": 4, "may": 5, "june": 6,
     "july": 7, "august": 8, "september": 9, "october": 10, "november": 11, "december": 12,
@@ -516,7 +597,7 @@ def parse_alarm_request(text):
     GPT - same reasoning as the timer: an exact time needs to be
     exact, not guessed."""
     t = text.lower()
-    if "alarm" not in t:
+    if "alarm" not in t and "منبه" not in t:
         return None
 
     hour = minute = None
@@ -540,7 +621,7 @@ def parse_alarm_request(text):
                 # Hour only, digits, NO am/pm given at all (e.g. "alarm
                 # for 7", "set alarm at 14") - accept the number as-is
                 # rather than failing to parse entirely.
-                m = re.search(r"\balarm\b.*?\b(\d{1,2})\b", t)
+                m = re.search(r"(?:\balarm\b|منبه).*?\b(\d{1,2})\b", t)
                 if m:
                     hour, minute = int(m.group(1)), 0
                 else:
@@ -576,10 +657,23 @@ def parse_timer_request(text):
     and this is far more reliable than hoping the model gets it right
     and phrases its reply in a way we can parse back out."""
     t = text.lower()
-    if "timer" not in t:
+    if "timer" not in t and "مؤقت" not in t and "موقت" not in t:
         return None
     total_seconds = 0
     found = False
+    # Arabic units first - digits followed by ساعة/دقيقة/ثانية
+    for match in re.finditer(r"(\d+)\s*(ساعة|ساعات|دقيقة|دقائق|ثانية|ثواني)", t):
+        num = int(match.group(1))
+        unit = match.group(2)
+        if unit.startswith("ساع"):
+            total_seconds += num * 3600
+        elif unit.startswith("دق"):
+            total_seconds += num * 60
+        else:
+            total_seconds += num
+        found = True
+    if found:
+        return total_seconds if total_seconds > 0 else None
     for match in re.finditer(r"(\d+)\s*(hour|hr|minute|min|second|sec)s?", t):
         num = int(match.group(1))
         unit = match.group(2)
@@ -630,6 +724,24 @@ def describe_duration(total_seconds):
     return ", ".join(parts[:-1]) + " and " + parts[-1]
 
 
+def describe_duration_arabic(total_seconds):
+    """Arabic version of describe_duration - e.g. '10 دقيقة' or
+    '1 ساعة و 30 دقيقة'."""
+    hours = total_seconds // 3600
+    minutes = (total_seconds % 3600) // 60
+    seconds = total_seconds % 60
+    parts = []
+    if hours:
+        parts.append(f"{hours} ساعة")
+    if minutes:
+        parts.append(f"{minutes} دقيقة")
+    if seconds:
+        parts.append(f"{seconds} ثانية")
+    if not parts:
+        return "0 ثانية"
+    return " و ".join(parts)
+
+
 def strip_wake_word(text, wake_word):
     """Checks whether the wake word (or a close transcription variant
     of it, e.g. Whisper hearing 'Aleksandra' for 'Alexander') appears
@@ -655,6 +767,17 @@ def strip_wake_word(text, wake_word):
                 break
             remainder = new_remainder
         return remainder.strip()
+
+    # Arabic transcriptions of the name - Whisper writes it in Arabic
+    # script when the surrounding sentence is Arabic, so the Latin
+    # matching above would never find it. Several spellings are
+    # accepted since transcription of names isn't consistent.
+    arabic_wake_variants = ["ألكسندر", "الكسندر", "اليكساندر", "أليكساندر", "ألكساندر", "الكساندر"]
+    for variant in arabic_wake_variants:
+        idx = stripped.find(variant)
+        if idx != -1 and idx <= 20:  # near the start only
+            remainder = (stripped[:idx] + stripped[idx + len(variant):]).strip()
+            return remainder.lstrip("،,.!؟?").strip()
 
     # Fuzzy fallback: a near-miss transcription of the name (shares
     # the same first few letters) still counts, since speech-to-text
@@ -697,8 +820,10 @@ def voice_query():
         transcript = client.audio.transcriptions.create(
             model="whisper-1",
             file=("query.wav", wav_bytes, "audio/wav"),
-            language="en",
-            prompt=f"The assistant's name is {wake_word}.",
+            # No language= forced here on purpose - letting it
+            # auto-detect is what allows both English and Arabic to
+            # work. Forcing "en" made Arabic speech come out garbled.
+            prompt=f"The assistant's name is {wake_word}. The speaker may talk in English or Arabic.",
         )
         heard_text = transcript.text.strip()
         print(f">>> Heard: '{heard_text}' | skip_wake_word={skip_wake_word} | Expected wake word: '{wake_word}'", flush=True)
@@ -718,7 +843,7 @@ def voice_query():
                 # Just the wake word alone, nothing else said yet -
                 # acknowledge and open a follow-up window instead of
                 # answering anything.
-                reply_text = "Yes?"
+                reply_text = "نعم؟" if is_arabic(heard_text) else "Yes?"
                 await_followup = True
 
         timer_seconds = None
@@ -739,26 +864,46 @@ def voice_query():
             reminder_request = parse_reminder_request(question_text) if not cancel_target else None
             timer_seconds = parse_timer_request(question_text) if not cancel_target and not reminder_request else None
             alarm_request = parse_alarm_request(question_text) if not timer_seconds and not cancel_target and not reminder_request else None
+            ar = is_arabic(question_text)
             if cancel_target == "timer":
-                reply_text = "Timer cancelled."
+                reply_text = "تم إلغاء المؤقت." if ar else "Timer cancelled."
             elif cancel_target == "alarm":
-                reply_text = "Alarm cancelled."
+                reply_text = "تم إلغاء المنبه." if ar else "Alarm cancelled."
             elif reminder_request:
                 reminder_month, reminder_day, reminder_label = reminder_request
                 suffix = "th" if 11 <= reminder_day % 100 <= 13 else {1: "st", 2: "nd", 3: "rd"}.get(reminder_day % 10, "th")
-                reply_text = f"Reminder set for {MONTH_NAMES[reminder_month]} {reminder_day}{suffix}: {reminder_label}."
+                if ar:
+                    reply_text = f"تم ضبط التذكير في {reminder_day} {ARABIC_MONTH_NAMES[reminder_month]}: {reminder_label}."
+                else:
+                    reply_text = f"Reminder set for {MONTH_NAMES[reminder_month]} {reminder_day}{suffix}: {reminder_label}."
             elif timer_seconds:
-                reply_text = f"Timer set for {describe_duration(timer_seconds)}."
+                if ar:
+                    reply_text = f"تم ضبط المؤقت لمدة {describe_duration_arabic(timer_seconds)}."
+                else:
+                    reply_text = f"Timer set for {describe_duration(timer_seconds)}."
             elif alarm_request:
                 alarm_hour, alarm_minute = alarm_request
                 spoken = format_spoken_time(f"{alarm_hour:02d}:{alarm_minute:02d}:00")
-                reply_text = f"Alarm set for {spoken}."
+                if ar:
+                    reply_text = f"تم ضبط المنبه على الساعة {alarm_hour}:{alarm_minute:02d}."
+                else:
+                    reply_text = f"Alarm set for {spoken}."
             elif is_time_request(question_text) and device_time:
                 spoken = format_spoken_time(device_time)
-                reply_text = f"It's {spoken}." if spoken else "Sorry, I couldn't read the clock."
+                if ar:
+                    reply_text = f"الساعة الآن {spoken}." if spoken else "عذراً، لم أتمكن من قراءة الساعة."
+                else:
+                    reply_text = f"It's {spoken}." if spoken else "Sorry, I couldn't read the clock."
             elif is_date_request(question_text) and device_date:
                 spoken = format_spoken_date(device_date)
-                reply_text = f"It's {spoken}." if spoken else "Sorry, I couldn't read the date."
+                if ar:
+                    try:
+                        y, m, d = device_date.split("-")
+                        reply_text = f"التاريخ اليوم {int(d)} {ARABIC_MONTH_NAMES[int(m)]}."
+                    except (ValueError, KeyError, IndexError):
+                        reply_text = "عذراً، لم أتمكن من قراءة التاريخ."
+                else:
+                    reply_text = f"It's {spoken}." if spoken else "Sorry, I couldn't read the date."
             elif is_owner_request(question_text):
                 reply_text = OWNER_REPLY
             elif is_identity_request(question_text):
@@ -822,11 +967,18 @@ def voice_query():
                     model=CHAT_MODEL,
                     max_tokens=45,
                     messages=[
-                        {"role": "system", "content": "You are a helpful voice assistant on a small robot speaker. Keep answers under 2 short sentences, plain text, no markdown, no emojis."},
+                        {"role": "system", "content": "You are a helpful voice assistant on a small robot speaker. Keep answers under 2 short sentences, plain text, no markdown, no emojis. Always reply in the SAME language the user asked in - if they ask in Arabic, answer in Arabic; if they ask in English, answer in English."},
                         {"role": "user", "content": question_text},
                     ],
                 )
                 reply_text = chat.choices[0].message.content.strip()
+
+            # Swap any fixed English reply for its Arabic version when
+            # the question was asked in Arabic. GPT answers are already
+            # in the right language (handled by its system prompt
+            # above), and this leaves them untouched since they won't
+            # be in the translation table.
+            reply_text = localize(reply_text, question_text)
 
         speech = client.audio.speech.create(
             model=TTS_MODEL,
@@ -879,6 +1031,47 @@ def alarm_sound():
     resp.headers["X-Audio-Rate"] = str(sample_rate)
     resp.headers["X-Audio-Channels"] = str(channels)
     return resp
+
+
+# Fixed responses for the touch sensor - no recording/transcription
+# needed, since the touch pattern itself (double-tap, triple-tap,
+# long touch) already tells us exactly which one to say.
+TOUCH_RESPONSES = {
+    "double": "What you want, you are making me angry. Don't touch me again.",
+    "triple": "I told you don't touch me again. OK now I understand why you don't get it, because you are stupid.",
+    "quadruple": "Interesting.",
+    "long": "Yes daddy, go faster, you are the best daddy, faster, faster.",
+}
+
+
+@app.route("/touch-response", methods=["GET"])
+def touch_response():
+    touch_type = request.args.get("type", "")
+    reply_text = TOUCH_RESPONSES.get(touch_type)
+    if not reply_text:
+        return Response("Unknown touch type - use ?type=double, triple, quadruple, or long", status=400)
+
+    try:
+        speech = client.audio.speech.create(
+            model=TTS_MODEL,
+            voice=TTS_VOICE,
+            input=reply_text,
+            response_format="wav",
+        )
+        reply_wav_bytes = speech.read()
+        reply_wav_bytes = downsample_wav(reply_wav_bytes, 24000)  # native rate
+        sample_rate, channels = read_wav_header_info(reply_wav_bytes)
+
+        resp = Response(reply_wav_bytes, mimetype="audio/wav")
+        resp.headers["X-Audio-Rate"] = str(sample_rate)
+        resp.headers["X-Audio-Channels"] = str(channels)
+        # Same header the main voice endpoint uses - lets the device
+        # cache this exact phrase and play it instantly after the
+        # first time, same as any other fixed answer.
+        resp.headers["X-Reply-Text"] = urllib.parse.quote(reply_text[:200])
+        return resp
+    except Exception as e:
+        return Response(f"Error: {str(e)}", status=500)
 
 
 @app.route("/", methods=["GET"])
