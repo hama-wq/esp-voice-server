@@ -205,7 +205,14 @@ def is_bartender_question(text):
     return fuzzy_match(text, [["bartender", "bartenders"]])
 
 
-BARTENDER_REPLY = "Michael is the best bartender in the world."
+BARTENDER_REPLY = "Michel is the best bartender in the world."
+
+
+def is_fuck_question(text):
+    return fuzzy_match(text, [["can i fuck you"]])
+
+
+FUCK_REPLY = "of course baby my ass is ready for you."
 
 
 def is_hamza_question(text):
@@ -236,7 +243,7 @@ def is_bro_question(text):
     return fuzzy_match(text, [["who"], ["bro"]])
 
 
-BRO_REPLY = "Your bro is Yad Farhad, and he is sexy."
+BRO_REPLY = "Your bro is Yad Fryad, and he is sexy."
 
 
 def is_love_more_question(text):
@@ -771,6 +778,8 @@ def voice_query():
                 reply_text = BEST_FRIEND_REPLY
             elif is_bartender_question(question_text):
                 reply_text = BARTENDER_REPLY
+            elif is_fuck_question(question_text):
+                reply_text = FUCK_REPLY
             elif is_hamza_question(question_text):
                 reply_text = HAMZA_REPLY
             elif is_shoot_threat(question_text):
