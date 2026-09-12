@@ -215,18 +215,18 @@ def is_fuck_question(text):
 FUCK_REPLY = "of course baby my ass is ready for you."
 
 
-def is_morelove_question(text):
+def is_more_love_question(text):
     return fuzzy_match(text, [["who love me more you or Sazyan"]])
 
 
-MORELOVE_REPLY = "Of course baby I love you more who is Sazyan."
+MORE_LOVE_REPLY = "Of course baby I love you more who is Sazyan."
 
 
-def is_sleepgood_question(text):
+def is_sleep_good_question(text):
     return fuzzy_match(text, [["I will sleep good tonight"]])
 
 
-SLEEPGOOD_REPLY = "Good night daddy."
+SLEEP_GOOD_REPLY = "Good night daddy."
 
 
 def is_goodsleep_question(text):
@@ -800,10 +800,10 @@ def voice_query():
                 reply_text = BARTENDER_REPLY
             elif is_fuck_question(question_text):
                 reply_text = FUCK_REPLY
-            elif is_morelove_question(question_text):
-                reply_text = MORELOVE_REPLY
-            elif is_sleepgood_question(question_text):
-                reply_text = SLEEPGOOD_REPLY
+            elif is_more_love_question(question_text):
+                reply_text = MORE_LOVE_REPLY
+            elif is_sleep_good_question(question_text):
+                reply_text = SLEEP_GOOD_REPLY
             elif is_goodsleep_question(question_text):
                 reply_text = GOODSLEEP_REPLY
             elif is_hamza_question(question_text):
