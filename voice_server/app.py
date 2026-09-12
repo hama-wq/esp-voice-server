@@ -5,6 +5,7 @@ import urllib.parse
 import audioop
 import wave
 import io
+import concurrent.futures
 from flask import Flask, request, Response
 from openai import OpenAI
 
@@ -1040,6 +1041,70 @@ def describe_duration_arabic(total_seconds):
     return " و ".join(parts)
 
 
+def _transcribe_forced(wav_bytes, lang, wake_word):
+    """Runs one Whisper transcription, locked to a single language.
+    A per-language prompt is safe to use here (unlike the old
+    English-instruction prompt) because the language is already
+    pinned by the `language` parameter - it can't drag the output
+    into a different language anymore, it can only help spell the
+    wake word correctly within the language it's already committed to."""
+    prompt = f"{wake_word} أليكسندر الكسندر" if lang == "ar" else wake_word
+    return client.audio.transcriptions.create(
+        model="whisper-1",
+        file=("query.wav", wav_bytes, "audio/wav"),
+        language=lang,
+        response_format="verbose_json",
+        prompt=prompt,
+    )
+
+
+def _transcript_confidence(transcript):
+    """Averages each segment's avg_logprob (how confident Whisper was
+    in its own words) and penalizes high no_speech_prob (segments it
+    suspects are silence/noise, not real speech). Higher is better."""
+    segments = getattr(transcript, "segments", None) or []
+    scores = []
+    for seg in segments:
+        avg_logprob = getattr(seg, "avg_logprob", None)
+        if avg_logprob is None:
+            continue
+        no_speech_prob = getattr(seg, "no_speech_prob", None) or 0.0
+        scores.append(avg_logprob - no_speech_prob * 2)
+    if not scores:
+        return -999.0
+    return sum(scores) / len(scores)
+
+
+def transcribe_bilingual(wav_bytes, wake_word):
+    """Transcribes the recording twice in parallel, once forced to
+    English and once to Arabic, and keeps whichever one Whisper was
+    itself more confident about. Returns (lang, transcript) where lang
+    is "en" or "ar".
+
+    Necessary because letting Whisper auto-detect the language on
+    short/noisy clips turned out to be wildly unreliable - it would
+    decide the audio was Turkish, Hebrew, Maltese, etc. and actually
+    transcribe (not just mislabel) it as garbled text in that
+    language's script, which nothing downstream can recover from.
+    Forcing a single language doesn't work either (forcing "en"
+    garbled real Arabic speech) - running both and picking the more
+    confident one is what actually keeps the output to just these two
+    languages, which is all this device needs to support."""
+    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
+        futures = {lang: pool.submit(_transcribe_forced, wav_bytes, lang, wake_word)
+                   for lang in ("en", "ar")}
+        results = {}
+        for lang, fut in futures.items():
+            try:
+                results[lang] = fut.result()
+            except Exception as e:
+                print(f">>> Transcription ({lang}) failed: {e}", flush=True)
+    if not results:
+        raise RuntimeError("both forced transcriptions failed")
+    best_lang = max(results, key=lambda lang: _transcript_confidence(results[lang]))
+    return best_lang, results[best_lang]
+
+
 def strip_wake_word(text, wake_word):
     """Checks whether the wake word (or a close transcription variant
     of it, e.g. Whisper hearing 'Aleksandra' for 'Alexander') appears
@@ -1130,28 +1195,16 @@ def voice_query():
     wav_bytes = build_wav_header(len(pcm_bytes), input_rate, input_channels) + pcm_bytes
 
     try:
-        transcript = client.audio.transcriptions.create(
-            model="whisper-1",
-            file=("query.wav", wav_bytes, "audio/wav"),
-            # No language= forced here on purpose - letting it
-            # auto-detect is what allows both English and Arabic to
-            # work. Forcing "en" made Arabic speech come out garbled.
-            # verbose_json so we also get back which language it
-            # actually detected, which is more reliable than guessing
-            # from the script (it sometimes transliterates Arabic
-            # into Latin letters).
-            #
-            # Deliberately NOT passing a `prompt` here. An English-only
-            # instructional prompt ("The assistant's name is Alexander...")
-            # was found to bias the decoder into continuing in English for
-            # the WHOLE transcription - it would sometimes translate
-            # genuinely Arabic speech into fluent English text instead of
-            # transcribing it (e.g. "من هو حمزة؟" coming back as "who is
-            # Hamza?"), which no amount of downstream language-detection
-            # can catch since there's no Arabic left in the string by then.
-            response_format="verbose_json",
-        )
-        detected_lang = getattr(transcript, "language", "") or ""
+        # Letting Whisper freely auto-detect among all ~90 languages
+        # turned out unusable on short/noisy clips - it would decide
+        # the audio was Turkish, Hebrew, Maltese, etc. and transcribe
+        # actual English/Arabic speech as garbled text in that wrong
+        # script. This device only needs to support English and
+        # Arabic, so transcribe_bilingual() forces both explicitly and
+        # keeps whichever one Whisper was itself more confident about -
+        # see its docstring for the full reasoning.
+        best_lang, transcript = transcribe_bilingual(wav_bytes, wake_word)
+        detected_lang = "arabic" if best_lang == "ar" else "english"
         heard_text = transcript.text.strip()
 
         # Whisper hallucinates stock phrases when given silence or
