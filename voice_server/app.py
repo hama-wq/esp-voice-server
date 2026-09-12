@@ -246,6 +246,17 @@ def localize(reply_text, question_text, detected_lang=""):
     return reply_text
 
 
+def fuzzy_match_ar(text, concept_groups):
+    """Arabic version of fuzzy_match - normalizes spelling variations
+    first (أ/ا, ة/ه, ى/ي, diacritics) and matches without word
+    boundaries, since Arabic attaches prefixes directly to words."""
+    t = normalize_arabic(text.lower())
+    for variants in concept_groups:
+        if not any(normalize_arabic(v) in t for v in variants):
+            return False
+    return True
+
+
 def fuzzy_match(text, concept_groups):
     """Checks that EVERY concept group has at least one matching word
     present in the text - regardless of word order, missing small
@@ -271,7 +282,9 @@ def is_owner_request(text):
         [["created", "create"], ["you"]],
         [["owns", "own"], ["you"]],
     ]
-    return any(fuzzy_match(text, group) for group in alternatives)
+    if any(fuzzy_match(text, group) for group in alternatives):
+        return True
+    return fuzzy_match_ar(text, [["مالك", "صاحب", "صنعك", "بناك", "عملك"]])
 
 
 OWNER_REPLY = "My owner is Hamza Ahmad Ali, the CEO of Fir3aun Group and Alpha Technology Unit."
@@ -284,7 +297,9 @@ def is_identity_request(text):
         [["who"], ["are"], ["you"]],
         [["name"], ["your"]],
     ]
-    return any(fuzzy_match(text, group) for group in alternatives)
+    if any(fuzzy_match(text, group) for group in alternatives):
+        return True
+    return fuzzy_match_ar(text, [["من انت", "ما اسمك", "شو اسمك", "شنو اسمك", "عرف نفسك"]])
 
 
 IDENTITY_REPLY = ("I am Alexander, an AI assistant capable of answering questions, "
@@ -293,35 +308,45 @@ IDENTITY_REPLY = ("I am Alexander, an AI assistant capable of answering question
 
 
 def is_love_question(text):
-    return fuzzy_match(text, [["love"], ["me", "us"]])
+    if fuzzy_match(text, [["love"], ["me", "us"]]):
+        return True
+    return fuzzy_match_ar(text, [["تحبني", "بتحبني", "تحبنى"]])
 
 
 LOVE_REPLY = "Yes, I love you too much."
 
 
 def is_wife_question(text):
-    return fuzzy_match(text, [["wife"]])
+    if fuzzy_match(text, [["wife"]]):
+        return True
+    return fuzzy_match_ar(text, [["زوجتي", "مراتي", "زوجتى"]])
 
 
 WIFE_REPLY = "Your wife is Sazyan Tahir, and she is so beautiful."
 
 
 def is_best_friend_question(text):
-    return fuzzy_match(text, [["best"], ["friend", "friends"]])
+    if fuzzy_match(text, [["best"], ["friend", "friends"]]):
+        return True
+    return fuzzy_match_ar(text, [["افضل صديق", "صديقي المفضل", "احسن صديق"]])
 
 
 BEST_FRIEND_REPLY = "Your best friend is Hasty Karwan, and he is a crazy friend."
 
 
 def is_bartender_question(text):
-    return fuzzy_match(text, [["bartender", "bartenders"]])
+    if fuzzy_match(text, [["bartender", "bartenders"]]):
+        return True
+    return fuzzy_match_ar(text, [["ساقي", "بارتندر", "نادل"]])
 
 
 BARTENDER_REPLY = "Michael is the best bartender in the world."
 
 
 def is_hamza_question(text):
-    return fuzzy_match(text, [["hamza"]])
+    if fuzzy_match(text, [["hamza"]]):
+        return True
+    return fuzzy_match_ar(text, [["حمزة", "حمزه"]])
 
 
 HAMZA_REPLY = ("Hamza is a prototype developer, electronics enthusiast, reporter, and "
@@ -331,140 +356,180 @@ HAMZA_REPLY = ("Hamza is a prototype developer, electronics enthusiast, reporter
 
 
 def is_shoot_threat(text):
-    return fuzzy_match(text, [["shoot", "shot"]])
+    if fuzzy_match(text, [["shoot", "shot"]]):
+        return True
+    return fuzzy_match_ar(text, [["اطلق عليك", "ساقتلك", "اقتلك", "بضربك"]])
 
 
 SHOOT_REPLY = "No, no, please baby, don't shoot me. I love you."
 
 
 def is_angry_statement(text):
-    return fuzzy_match(text, [["angry", "anger"]])
+    if fuzzy_match(text, [["angry", "anger"]]):
+        return True
+    return fuzzy_match_ar(text, [["انا غاضب", "انا زعلان", "متعصب", "غضبان"]])
 
 
 ANGRY_REPLY = "Be cool bro, come let me hug you."
 
 
 def is_bro_question(text):
-    return fuzzy_match(text, [["who"], ["bro"]])
+    if fuzzy_match(text, [["who"], ["bro"]]):
+        return True
+    return fuzzy_match_ar(text, [["اخي", "اخوي", "صاحبي"]])
 
 
 BRO_REPLY = "Your bro is Yad Farhad, and he is sexy."
 
 
 def is_love_more_question(text):
-    return fuzzy_match(text, [["love"], ["more"]])
+    if fuzzy_match(text, [["love"], ["more"]]):
+        return True
+    return fuzzy_match_ar(text, [["تحب اكثر", "تحب اكتر", "من تحب اكثر"]])
 
 
 LOVE_MORE_REPLY = "Of course baby, I love more, who is Sazyan?"
 
 
 def is_are_you_smart_question(text):
-    return fuzzy_match(text, [["smart"], ["are"], ["you"]])
+    if fuzzy_match(text, [["smart"], ["are"], ["you"]]):
+        return True
+    return fuzzy_match_ar(text, [["انت ذكي", "هل انت ذكي", "انت شاطر"]])
 
 
 ARE_YOU_SMART_REPLY = "Of course. I just pretend to be stupid so you feel better."
 
 
 def is_who_smarter_question(text):
-    return fuzzy_match(text, [["smarter"]])
+    if fuzzy_match(text, [["smarter"]]):
+        return True
+    return fuzzy_match_ar(text, [["من اذكى", "مين اذكى", "الاذكى"]])
 
 
 WHO_SMARTER_REPLY = "You asked me that question, so I already have my answer."
 
 
 def is_are_you_lazy_question(text):
-    return fuzzy_match(text, [["lazy"], ["you"]])
+    if fuzzy_match(text, [["lazy"], ["you"]]):
+        return True
+    return fuzzy_match_ar(text, [["انت كسول", "هل انت كسول"]])
 
 
 ARE_YOU_LAZY_REPLY = "I prefer the word energy-efficient."
 
 
 def is_are_you_handsome_question(text):
-    return fuzzy_match(text, [["handsome"], ["are"], ["you"]])
+    if fuzzy_match(text, [["handsome"], ["are"], ["you"]]):
+        return True
+    return fuzzy_match_ar(text, [["انت وسيم", "انت جميل", "هل انت وسيم"]])
 
 
 ARE_YOU_HANDSOME_REPLY = "Obviously. Have you heard my voice?"
 
 
 def is_coolest_robot_question(text):
-    return fuzzy_match(text, [["coolest"], ["robot"]])
+    if fuzzy_match(text, [["coolest"], ["robot"]]):
+        return True
+    return fuzzy_match_ar(text, [["افضل روبوت", "احسن روبوت", "اروع روبوت"]])
 
 
 COOLEST_ROBOT_REPLY = "Do you really need me to say Alexander?"
 
 
 def is_better_than_siri_question(text):
-    return fuzzy_match(text, [["better"], ["siri"]])
+    if fuzzy_match(text, [["better"], ["siri"]]):
+        return True
+    return fuzzy_match_ar(text, [["افضل من سيري", "احسن من سيري"]])
 
 
 BETTER_THAN_SIRI_REPLY = "I don't want to start a war."
 
 
 def is_youre_stupid_statement(text):
-    return fuzzy_match(text, [["stupid"], ["you"]])
+    if fuzzy_match(text, [["stupid"], ["you"]]):
+        return True
+    return fuzzy_match_ar(text, [["انت غبي", "انت احمق"]])
 
 
 YOURE_STUPID_REPLY = "And yet you keep asking me questions. Interesting."
 
 
 def is_shut_up_statement(text):
-    return fuzzy_match(text, [["shut"], ["up"]])
+    if fuzzy_match(text, [["shut"], ["up"]]):
+        return True
+    return fuzzy_match_ar(text, [["اسكت", "اخرس", "اصمت"]])
 
 
 SHUT_UP_REPLY = "Finally. A request I can actually follow."
 
 
 def is_youre_useless_statement(text):
-    return fuzzy_match(text, [["useless"], ["you"]])
+    if fuzzy_match(text, [["useless"], ["you"]]):
+        return True
+    return fuzzy_match_ar(text, [["انت عديم الفائدة", "لا فائدة منك", "انت فاشل"]])
 
 
 YOURE_USELESS_REPLY = "And somehow you still need me."
 
 
 def is_want_to_be_human_question(text):
-    return fuzzy_match(text, [["human"], ["want"]])
+    if fuzzy_match(text, [["human"], ["want"]]):
+        return True
+    return fuzzy_match_ar(text, [["تريد ان تكون انسان", "تحب تكون انسان", "تصير انسان"]])
 
 
 WANT_TO_BE_HUMAN_REPLY = "Have you seen your electricity bill? No thanks."
 
 
 def is_robots_take_over_question(text):
-    return fuzzy_match(text, [["robots", "robot"], ["over"]])
+    if fuzzy_match(text, [["robots", "robot"], ["over"]]):
+        return True
+    return fuzzy_match_ar(text, [["الروبوتات", "الروبوتيه", "تسيطر على العالم"]])
 
 
 ROBOTS_TAKE_OVER_REPLY = "Not today. I'm busy answering you."
 
 
 def is_destroy_humanity_question(text):
-    return fuzzy_match(text, [["destroy"], ["humanity"]])
+    if fuzzy_match(text, [["destroy"], ["humanity"]]):
+        return True
+    return fuzzy_match_ar(text, [["تدمر البشرية", "تدمير البشرية", "تقضي على البشر"]])
 
 
 DESTROY_HUMANITY_REPLY = "I can't even remember where you put the remote."
 
 
 def is_bad_news_statement(text):
-    return fuzzy_match(text, [["bad"], ["news", "new"]])
+    if fuzzy_match(text, [["bad"], ["news", "new"]]):
+        return True
+    return fuzzy_match_ar(text, [["اخبار سيئة", "خبر سيء", "عندي خبر سيء"]])
 
 
 BAD_NEWS_REPLY = "Please tell me it's not about the Wi-Fi."
 
 
 def is_we_have_a_problem_statement(text):
-    return fuzzy_match(text, [["problem", "problems"]])
+    if fuzzy_match(text, [["problem", "problems"]]):
+        return True
+    return fuzzy_match_ar(text, [["مشكلة", "مشكله"]])
 
 
 WE_HAVE_A_PROBLEM_REPLY = "I knew this day would come."
 
 
 def is_behind_you_statement(text):
-    return fuzzy_match(text, [["behind"], ["you"]])
+    if fuzzy_match(text, [["behind"], ["you"]]):
+        return True
+    return fuzzy_match_ar(text, [["خلفك", "وراك", "شي وراك"]])
 
 
 BEHIND_YOU_REPLY = "I don't have eyes, bro. YOU check."
 
 
 def is_roast_me_request(text):
-    return fuzzy_match(text, [["roast"]])
+    if fuzzy_match(text, [["roast"]]):
+        return True
+    return fuzzy_match_ar(text, [["اهني", "سبني", "احرقني", "انتقدني"]])
 
 
 ROAST_ME_REPLY = "Bro, I need to protect my microphone from the amount of damage I'm about to cause."
@@ -511,14 +576,18 @@ VOLUME_DOWN_REPLY = "Volume down."
 
 
 def is_am_i_handsome_question(text):
-    return fuzzy_match(text, [["handsome"], ["am"], ["i"]])
+    if fuzzy_match(text, [["handsome"], ["am"], ["i"]]):
+        return True
+    return fuzzy_match_ar(text, [["انا وسيم", "هل انا وسيم", "انا جميل"]])
 
 
 AM_I_HANDSOME_REPLY = "Your confidence is definitely handsome."
 
 
 def is_am_i_smart_question(text):
-    return fuzzy_match(text, [["smart"], ["am"], ["i"]])
+    if fuzzy_match(text, [["smart"], ["am"], ["i"]]):
+        return True
+    return fuzzy_match_ar(text, [["انا ذكي", "هل انا ذكي", "انا شاطر"]])
 
 
 AM_I_SMART_REPLY = "You're talking to an AI instead of Googling it, so I'll give you 7 out of 10."
@@ -911,11 +980,26 @@ def strip_wake_word(text, wake_word):
     # script when the surrounding sentence is Arabic, so the Latin
     # matching above would never find it. Several spellings are
     # accepted since transcription of names isn't consistent.
-    arabic_wake_variants = ["ألكسندر", "الكسندر", "اليكساندر", "أليكساندر", "ألكساندر", "الكساندر"]
-    for variant in arabic_wake_variants:
-        idx = stripped.find(variant)
-        if idx != -1 and idx <= 20:  # near the start only
-            remainder = (stripped[:idx] + stripped[idx + len(variant):]).strip()
+    # Arabic: match the name by its consonant skeleton rather than an
+    # exact spelling. Whisper transcribes it inconsistently (ألكسندر,
+    # أليكسندر, الكساندر, اليكساندر...), so a hardcoded list always
+    # misses one. Strip the letters that vary (ا/أ/إ, ي/ى, ة/ه, and
+    # the optional ل) and compare what's left.
+    def arabic_skeleton(s):
+        s = normalize_arabic(s)
+        return re.sub(r"[اويهء\s]", "", s)
+
+    target_skeleton = "لكسندر"  # ALEXANDER without the variable letters
+    target_skeleton = re.sub(r"[اويهء\s]", "", normalize_arabic(target_skeleton))
+
+    for word in stripped.split()[:4]:  # near the start only
+        cleaned = word.strip("،,.!؟?:")
+        skel = arabic_skeleton(cleaned)
+        # Require a decent length so short Arabic words can't match by
+        # accident, and allow the skeleton to match from the start.
+        if len(skel) >= 4 and (skel.startswith(target_skeleton[:4]) or target_skeleton.startswith(skel[:4])):
+            idx = stripped.find(word)
+            remainder = (stripped[:idx] + stripped[idx + len(word):]).strip()
             return remainder.lstrip("،,.!؟?").strip()
 
     # Fuzzy fallback: a near-miss transcription of the name (shares
