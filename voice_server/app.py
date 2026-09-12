@@ -170,11 +170,13 @@ def is_arabic(text):
 ARABIC_REPLIES = {}
 
 
-def localize(reply_text, question_text):
+def localize(reply_text, question_text, detected_lang=""):
     """Returns the Arabic version of a fixed reply if the question was
     asked in Arabic and a translation exists, otherwise returns the
-    original English."""
-    if is_arabic(question_text):
+    original English. Checks both the script of the text AND the
+    language the transcriber reported, since Arabic speech is
+    sometimes transliterated into Latin letters."""
+    if is_arabic(question_text) or detected_lang.lower().startswith("ar"):
         return ARABIC_REPLIES.get(reply_text, reply_text)
     return reply_text
 
@@ -823,10 +825,17 @@ def voice_query():
             # No language= forced here on purpose - letting it
             # auto-detect is what allows both English and Arabic to
             # work. Forcing "en" made Arabic speech come out garbled.
+            # verbose_json so we also get back which language it
+            # actually detected, which is more reliable than guessing
+            # from the script (it sometimes transliterates Arabic
+            # into Latin letters).
+            response_format="verbose_json",
             prompt=f"The assistant's name is {wake_word}. The speaker may talk in English or Arabic.",
         )
+        detected_lang = getattr(transcript, "language", "") or ""
         heard_text = transcript.text.strip()
         print(f">>> Heard: '{heard_text}' | skip_wake_word={skip_wake_word} | Expected wake word: '{wake_word}'", flush=True)
+        print(f">>> Language check: is_arabic(heard)={is_arabic(heard_text)} | detected_lang='{detected_lang}'", flush=True)
 
         await_followup = False
 
@@ -843,7 +852,7 @@ def voice_query():
                 # Just the wake word alone, nothing else said yet -
                 # acknowledge and open a follow-up window instead of
                 # answering anything.
-                reply_text = "نعم؟" if is_arabic(heard_text) else "Yes?"
+                reply_text = "نعم؟" if (is_arabic(heard_text) or detected_lang.lower().startswith("ar")) else "Yes?"
                 await_followup = True
 
         timer_seconds = None
@@ -864,7 +873,7 @@ def voice_query():
             reminder_request = parse_reminder_request(question_text) if not cancel_target else None
             timer_seconds = parse_timer_request(question_text) if not cancel_target and not reminder_request else None
             alarm_request = parse_alarm_request(question_text) if not timer_seconds and not cancel_target and not reminder_request else None
-            ar = is_arabic(question_text)
+            ar = is_arabic(question_text) or detected_lang.lower().startswith("ar")
             if cancel_target == "timer":
                 reply_text = "تم إلغاء المؤقت." if ar else "Timer cancelled."
             elif cancel_target == "alarm":
@@ -963,11 +972,16 @@ def voice_query():
             elif is_am_i_smart_question(question_text):
                 reply_text = AM_I_SMART_REPLY
             else:
+                ar_lang = is_arabic(question_text) or detected_lang.lower().startswith("ar")
                 chat = client.chat.completions.create(
                     model=CHAT_MODEL,
                     max_tokens=45,
                     messages=[
-                        {"role": "system", "content": "You are a helpful voice assistant on a small robot speaker. Keep answers under 2 short sentences, plain text, no markdown, no emojis. Always reply in the SAME language the user asked in - if they ask in Arabic, answer in Arabic; if they ask in English, answer in English."},
+                        {"role": "system", "content": ("You are a helpful voice assistant on a small robot speaker. "
+                                                        "Keep answers under 2 short sentences, plain text, no markdown, no emojis. "
+                                                        + ("CRITICAL: The user is speaking ARABIC. You MUST reply ONLY in Arabic script. Do not reply in English under any circumstances."
+                                                           if ar_lang else
+                                                           "Reply in English."))},
                         {"role": "user", "content": question_text},
                     ],
                 )
@@ -978,7 +992,7 @@ def voice_query():
             # in the right language (handled by its system prompt
             # above), and this leaves them untouched since they won't
             # be in the translation table.
-            reply_text = localize(reply_text, question_text)
+            reply_text = localize(reply_text, question_text, detected_lang)
 
         speech = client.audio.speech.create(
             model=TTS_MODEL,
