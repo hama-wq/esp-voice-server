@@ -198,7 +198,7 @@ def normalize_arabic(text):
     t = t.replace("أ", "ا").replace("إ", "ا").replace("آ", "ا")
     t = t.replace("ى", "ي").replace("ة", "ه")
     # Strip Arabic diacritics
-    t = re.sub(r"[\u064B-\u0652\u0670]", "", t)
+    t = re.sub(r"[ً-ْٰ]", "", t)
     return t
 
 
@@ -219,7 +219,7 @@ def is_arabic(text):
     if not text:
         return False
     for ch in text:
-        if "\u0600" <= ch <= "\u06FF" or "\u0750" <= ch <= "\u077F":
+        if "؀" <= ch <= "ۿ" or "ݐ" <= ch <= "ݿ":
             return True
     return False
 
@@ -536,7 +536,9 @@ ROAST_ME_REPLY = "Bro, I need to protect my microphone from the amount of damage
 
 
 def is_play_song_request(text):
-    return fuzzy_match(text, [["play"], ["song", "music"]])
+    if fuzzy_match(text, [["play"], ["song", "music"]]):
+        return True
+    return fuzzy_match_ar(text, [["شغل"], ["اغنية", "موسيقى"]])
 
 
 PLAY_SONG_REPLY = "Playing your song."
@@ -548,28 +550,36 @@ def is_change_song_request(text):
         [["next"], ["song"]],
         [["skip"], ["song"]],
     ]
-    return any(fuzzy_match(text, group) for group in alternatives)
+    if any(fuzzy_match(text, group) for group in alternatives):
+        return True
+    return fuzzy_match_ar(text, [["غير", "التالي", "بدل"], ["اغنية"]])
 
 
 CHANGE_SONG_REPLY = "Changing the song."
 
 
 def is_stop_song_request(text):
-    return fuzzy_match(text, [["stop"], ["song", "music"]])
+    if fuzzy_match(text, [["stop"], ["song", "music"]]):
+        return True
+    return fuzzy_match_ar(text, [["وقف", "ايقاف", "اوقف"], ["اغنية", "موسيقى"]])
 
 
 STOP_SONG_REPLY = "Song stopped."
 
 
 def is_volume_up_request(text):
-    return fuzzy_match(text, [["volume"], ["up"]])
+    if fuzzy_match(text, [["volume"], ["up"]]):
+        return True
+    return fuzzy_match_ar(text, [["صوت"], ["ارفع", "اعلى", "زود", "عالي"]])
 
 
 VOLUME_UP_REPLY = "Volume up."
 
 
 def is_volume_down_request(text):
-    return fuzzy_match(text, [["volume"], ["down"]])
+    if fuzzy_match(text, [["volume"], ["down"]]):
+        return True
+    return fuzzy_match_ar(text, [["صوت"], ["اخفض", "قلل", "انزل", "واطي"]])
 
 
 VOLUME_DOWN_REPLY = "Volume down."
@@ -598,7 +608,7 @@ AM_I_SMART_REPLY = "You're talking to an AI instead of Googling it, so I'll give
 # rather than a copy that could drift out of sync.
 ARABIC_REPLIES.update({
     OWNER_REPLY: "مالكي هو حمزة أحمد علي، الرئيس التنفيذي لمجموعة فرعون ووحدة ألفا للتكنولوجيا.",
-    IDENTITY_REPLY: "أنا ألكسندر، مساعد ذكي أستطيع الإجابة على الأسئلة وضبط المؤقتات والمنبهات. أقدم أيضاً وضع مكبر صوت بلوتوث.",
+    IDENTITY_REPLY: "أنا ألكسندر، مساعد ذكي أستطيع الإجابة على الأسئلة وضبط المؤقتات والمنبهات وتشغيل الموسيقى. أقدم أيضاً وضع مكبر صوت بلوتوث.",
     LOVE_REPLY: "نعم، أحبك كثيراً.",
     WIFE_REPLY: "زوجتك هي سازيان طاهر، وهي جميلة جداً.",
     BEST_FRIEND_REPLY: "أفضل صديق لك هو هستي كاروان، وهو صديق مجنون.",
@@ -626,12 +636,45 @@ ARABIC_REPLIES.update({
     ROAST_ME_REPLY: "يا أخي، أحتاج لحماية الميكروفون الخاص بي من حجم الضرر الذي أنا على وشك إحداثه.",
     AM_I_HANDSOME_REPLY: "ثقتك بنفسك وسيمة بالتأكيد.",
     AM_I_SMART_REPLY: "أنت تتحدث مع ذكاء اصطناعي بدلاً من البحث في جوجل، لذا سأعطيك سبعة من عشرة.",
+    PLAY_SONG_REPLY: "جاري تشغيل أغنيتك.",
+    CHANGE_SONG_REPLY: "جاري تغيير الأغنية.",
+    STOP_SONG_REPLY: "تم إيقاف الأغنية.",
+    VOLUME_UP_REPLY: "تم رفع الصوت.",
+    VOLUME_DOWN_REPLY: "تم خفض الصوت.",
 })
 
 
 MONTH_WORDS = {
     "january": 1, "february": 2, "march": 3, "april": 4, "may": 5, "june": 6,
     "july": 7, "august": 8, "september": 9, "october": 10, "november": 11, "december": 12,
+}
+
+ARABIC_MONTH_WORDS = {
+    "يناير": 1, "كانون الثاني": 1,
+    "فبراير": 2, "شباط": 2,
+    "مارس": 3, "اذار": 3,
+    "ابريل": 4, "نيسان": 4,
+    "مايو": 5, "ايار": 5,
+    "يونيو": 6, "حزيران": 6,
+    "يوليو": 7, "تموز": 7,
+    "اغسطس": 8,
+    "سبتمبر": 9, "ايلول": 9,
+    "اكتوبر": 10, "تشرين الاول": 10,
+    "نوفمبر": 11, "تشرين الثاني": 11,
+    "ديسمبر": 12, "كانون الاول": 12,
+}
+
+# Arabic masculine ordinals, used for "day of the month" ("اليوم
+# السابع من اكتوبر"). Digits (including Arabic-Indic ones, already
+# normalized by normalize_arabic) are tried first and cover most
+# real speech; these are the spoken-word fallback.
+ARABIC_DAY_ORDINALS = {
+    "الاول": 1, "الثاني": 2, "الثالث": 3, "الرابع": 4, "الخامس": 5,
+    "السادس": 6, "السابع": 7, "الثامن": 8, "التاسع": 9, "العاشر": 10,
+    "الحادي عشر": 11, "الثاني عشر": 12, "الثالث عشر": 13,
+    "الرابع عشر": 14, "الخامس عشر": 15, "السادس عشر": 16,
+    "السابع عشر": 17, "الثامن عشر": 18, "التاسع عشر": 19,
+    "العشرين": 20, "الثلاثين": 30,
 }
 
 DAY_WORDS = {
@@ -663,12 +706,61 @@ def _parse_day_number(text_fragment):
     return None
 
 
+def _parse_arabic_day_number(text_fragment):
+    """Arabic version of _parse_day_number - digits (already run
+    through normalize_arabic by the caller) first, then spoken
+    masculine ordinals ("السابع" = the 7th)."""
+    m = re.search(r"\b(\d{1,2})\b", text_fragment)
+    if m:
+        return int(m.group(1))
+    for word in sorted(ARABIC_DAY_ORDINALS, key=len, reverse=True):
+        if word in text_fragment:
+            return ARABIC_DAY_ORDINALS[word]
+    return None
+
+
 def parse_reminder_request(text):
     """Checks whether the question is asking to be reminded of
     something on a specific date (e.g. "remind me of Valentine's Day
-    on 7 October", "I have a meeting on December 22"). Returns
+    on 7 October", "I have a meeting on December 22", or the Arabic
+    equivalent "ذكرني بعيد ميلاد سازيان في السابع من اكتوبر"). Returns
     (month, day, label) if so, else None. This is a specific-date
     reminder, distinct from the daily-recurring alarm."""
+    if is_arabic(text):
+        tn = normalize_arabic(text.lower())
+        arabic_triggers = ["ذكرني", "فكرني", "عندي"]
+        if not any(w in tn for w in arabic_triggers):
+            return None
+
+        month = None
+        month_match = None
+        for word, num in ARABIC_MONTH_WORDS.items():
+            if re.search(rf"\b{word}\b", tn):
+                month = num
+                month_match = word
+                break
+        if month is None:
+            return None
+
+        month_idx = tn.find(month_match)
+        before = tn[max(0, month_idx - 15):month_idx]
+        after = tn[month_idx + len(month_match):month_idx + len(month_match) + 15]
+        day = _parse_arabic_day_number(before) or _parse_arabic_day_number(after)
+        if day is None or not (1 <= day <= 31):
+            return None
+
+        label = None
+        m = re.search(r"(?:ذكرني|فكرني)\s*(?:ب|بـ)?\s*(.+?)\s*(?:في|يوم)\s", tn)
+        if m:
+            label = m.group(1).strip()
+        if not label:
+            m = re.search(r"عندي\s+(.+?)\s*(?:في|يوم)\s", tn)
+            if m:
+                label = m.group(1).strip()
+        if not label:
+            label = "تذكير"
+        return (month, day, label[:40])
+
     t = text.lower()
     if "remind" not in t and "i have" not in t:
         return None
@@ -880,8 +972,6 @@ def parse_timer_request(text):
         else:
             total_seconds += num
         found = True
-    if found:
-        return total_seconds if total_seconds > 0 else None
     for match in re.finditer(r"(\d+)\s*(hour|hr|minute|min|second|sec)s?", t):
         num = int(match.group(1))
         unit = match.group(2)
@@ -1133,6 +1223,21 @@ def voice_query():
                     reply_text = f"تم ضبط المنبه على الساعة {alarm_hour}:{alarm_minute:02d}."
                 else:
                     reply_text = f"Alarm set for {spoken}."
+            elif is_play_song_request(question_text):
+                play_song = True
+                reply_text = PLAY_SONG_REPLY
+            elif is_change_song_request(question_text):
+                change_song = True
+                reply_text = CHANGE_SONG_REPLY
+            elif is_stop_song_request(question_text):
+                stop_song = True
+                reply_text = STOP_SONG_REPLY
+            elif is_volume_up_request(question_text):
+                volume_up = True
+                reply_text = VOLUME_UP_REPLY
+            elif is_volume_down_request(question_text):
+                volume_down = True
+                reply_text = VOLUME_DOWN_REPLY
             elif is_time_request(question_text) and device_time:
                 spoken = format_spoken_time(device_time)
                 if ar:
