@@ -233,10 +233,15 @@ ARABIC_REPLIES = {}
 def localize(reply_text, question_text, detected_lang=""):
     """Returns the Arabic version of a fixed reply if the question was
     asked in Arabic and a translation exists, otherwise returns the
-    original English. Checks both the script of the text AND the
-    language the transcriber reported, since Arabic speech is
-    sometimes transliterated into Latin letters."""
-    if is_arabic(question_text) or detected_lang.lower().startswith("ar"):
+    original English.
+
+    Deliberately judges by the SCRIPT of the transcribed text only.
+    Whisper's own reported language is unreliable on short clips - it
+    reported 'arabic' for the clearly-English "who is Hamza?" and
+    'nynorsk' for another English clip, which caused English questions
+    to be answered in Arabic. The text itself is the trustworthy
+    signal. detected_lang is kept in the signature for logging only."""
+    if is_arabic(question_text):
         return ARABIC_REPLIES.get(reply_text, reply_text)
     return reply_text
 
@@ -966,6 +971,21 @@ def voice_query():
         )
         detected_lang = getattr(transcript, "language", "") or ""
         heard_text = transcript.text.strip()
+
+        # Whisper hallucinates stock phrases when given silence or
+        # noise - these are subtitle/outro artifacts from its training
+        # data, not anything the user actually said. Treat them as
+        # silence so they don't get processed as a real question.
+        hallucination_markers = [
+            "thank you for watching", "thanks for watching",
+            "please subscribe", "subscribe to", "like and subscribe",
+            "see you next time", "see you in the next video",
+            "شكرا لمشاهدتكم", "اشتركوا في القناة", "ترجمة",
+        ]
+        heard_lower = heard_text.lower()
+        if any(marker in heard_lower for marker in hallucination_markers):
+            print(f">>> Discarded hallucinated transcription: '{heard_text}'", flush=True)
+            heard_text = ""
         print(f">>> Heard: '{heard_text}' | skip_wake_word={skip_wake_word} | Expected wake word: '{wake_word}'", flush=True)
         print(f">>> Language check: is_arabic(heard)={is_arabic(heard_text)} | detected_lang='{detected_lang}'", flush=True)
 
@@ -984,7 +1004,7 @@ def voice_query():
                 # Just the wake word alone, nothing else said yet -
                 # acknowledge and open a follow-up window instead of
                 # answering anything.
-                reply_text = "نعم؟" if (is_arabic(heard_text) or detected_lang.lower().startswith("ar")) else "Yes?"
+                reply_text = "نعم؟" if is_arabic(heard_text) else "Yes?"
                 await_followup = True
 
         timer_seconds = None
@@ -1005,7 +1025,7 @@ def voice_query():
             reminder_request = parse_reminder_request(question_text) if not cancel_target else None
             timer_seconds = parse_timer_request(question_text) if not cancel_target and not reminder_request else None
             alarm_request = parse_alarm_request(question_text) if not timer_seconds and not cancel_target and not reminder_request else None
-            ar = is_arabic(question_text) or detected_lang.lower().startswith("ar")
+            ar = is_arabic(question_text)
             if cancel_target == "timer":
                 reply_text = "تم إلغاء المؤقت." if ar else "Timer cancelled."
             elif cancel_target == "alarm":
@@ -1104,7 +1124,7 @@ def voice_query():
             elif is_am_i_smart_question(question_text):
                 reply_text = AM_I_SMART_REPLY
             else:
-                ar_lang = is_arabic(question_text) or detected_lang.lower().startswith("ar")
+                ar_lang = is_arabic(question_text)
                 chat = client.chat.completions.create(
                     model=CHAT_MODEL,
                     max_tokens=45,
