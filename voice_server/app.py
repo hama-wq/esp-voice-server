@@ -1041,13 +1041,20 @@ def describe_duration_arabic(total_seconds):
     return " و ".join(parts)
 
 
+def _transcribe_auto(wav_bytes, wake_word):
+    """One unforced transcription - Whisper picks the language itself.
+    Uses the short, non-instructional name hint (not a full English
+    sentence), which doesn't bias the decoder toward any one language."""
+    return client.audio.transcriptions.create(
+        model="whisper-1",
+        file=("query.wav", wav_bytes, "audio/wav"),
+        response_format="verbose_json",
+        prompt=f"{wake_word} أليكسندر الكسندر",
+    )
+
+
 def _transcribe_forced(wav_bytes, lang, wake_word):
-    """Runs one Whisper transcription, locked to a single language.
-    A per-language prompt is safe to use here (unlike the old
-    English-instruction prompt) because the language is already
-    pinned by the `language` parameter - it can't drag the output
-    into a different language anymore, it can only help spell the
-    wake word correctly within the language it's already committed to."""
+    """Runs one Whisper transcription, locked to a single language."""
     prompt = f"{wake_word} أليكسندر الكسندر" if lang == "ar" else wake_word
     return client.audio.transcriptions.create(
         model="whisper-1",
@@ -1076,20 +1083,33 @@ def _transcript_confidence(transcript):
 
 
 def transcribe_bilingual(wav_bytes, wake_word):
-    """Transcribes the recording twice in parallel, once forced to
-    English and once to Arabic, and keeps whichever one Whisper was
-    itself more confident about. Returns (lang, transcript) where lang
-    is "en" or "ar".
+    """Returns (lang, transcript) where lang is "en" or "ar", using
+    Whisper's own free (unforced) language guess whenever it lands on
+    one of those two - which is the normal case for any reasonably
+    clear recording, and the ONLY thing this device should ever
+    trust for word-for-word accuracy, since forcing a language can
+    make Whisper confidently hallucinate fluent text in the WRONG
+    language rather than transcribing what was actually said (that's
+    what caused everything to come back in Arabic no matter what was
+    asked - the forced-Arabic attempt was winning the confidence
+    comparison on English audio it never should have been forced onto
+    in the first place).
 
-    Necessary because letting Whisper auto-detect the language on
-    short/noisy clips turned out to be wildly unreliable - it would
-    decide the audio was Turkish, Hebrew, Maltese, etc. and actually
-    transcribe (not just mislabel) it as garbled text in that
-    language's script, which nothing downstream can recover from.
-    Forcing a single language doesn't work either (forcing "en"
-    garbled real Arabic speech) - running both and picking the more
-    confident one is what actually keeps the output to just these two
-    languages, which is all this device needs to support."""
+    Forcing both languages and comparing confidence is used ONLY as a
+    recovery step, and only when the free guess lands on neither
+    English nor Arabic (the earlier failure mode: short/ambiguous
+    audio getting auto-detected as Turkish, Hebrew, Maltese, etc.) -
+    in that specific situation the free guess has already proven
+    itself wrong, so there's nothing to lose by forcing a second
+    opinion."""
+    auto = _transcribe_auto(wav_bytes, wake_word)
+    auto_lang = (getattr(auto, "language", "") or "").lower()
+    if "english" in auto_lang:
+        return "en", auto
+    if "arabic" in auto_lang:
+        return "ar", auto
+
+    print(f">>> Auto-detect language was '{auto_lang}' (neither English nor Arabic) - re-checking with both forced", flush=True)
     with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
         futures = {lang: pool.submit(_transcribe_forced, wav_bytes, lang, wake_word)
                    for lang in ("en", "ar")}
@@ -1100,7 +1120,9 @@ def transcribe_bilingual(wav_bytes, wake_word):
             except Exception as e:
                 print(f">>> Transcription ({lang}) failed: {e}", flush=True)
     if not results:
-        raise RuntimeError("both forced transcriptions failed")
+        # Both forced attempts errored out - fall back to the original
+        # free guess rather than failing the whole request.
+        return "en", auto
     best_lang = max(results, key=lambda lang: _transcript_confidence(results[lang]))
     return best_lang, results[best_lang]
 
