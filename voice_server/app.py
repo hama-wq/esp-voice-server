@@ -1313,16 +1313,32 @@ def voice_query():
             elif is_am_i_smart_question(question_text):
                 reply_text = AM_I_SMART_REPLY
             else:
-                ar_lang = is_arabic(question_text)
+                # Deliberately NOT pre-deciding the reply language from
+                # is_arabic(question_text) and forcing it via a hard
+                # instruction - Whisper sometimes transliterates Arabic
+                # speech into Latin letters (no Arabic script at all), which
+                # made is_arabic() return False for a genuinely Arabic
+                # question and then force GPT to answer in English. GPT
+                # itself is far better at recognizing transliterated/Arabizi
+                # text for what it is, so it gets the actual judgment call,
+                # with Whisper's own language guess passed as a hint (not a
+                # hard switch) since that's noisy on its own for short clips.
+                lang_hint = ""
+                if "arabic" in detected_lang.lower():
+                    lang_hint = " The transcription system guessed this message is Arabic, so lean that way if it's at all ambiguous."
                 chat = client.chat.completions.create(
                     model=CHAT_MODEL,
                     max_tokens=45,
                     messages=[
-                        {"role": "system", "content": ("You are a helpful voice assistant on a small robot speaker. "
-                                                        "Keep answers under 2 short sentences, plain text, no markdown, no emojis. "
-                                                        + ("CRITICAL: The user is speaking ARABIC. You MUST reply ONLY in Arabic script. Do not reply in English under any circumstances."
-                                                           if ar_lang else
-                                                           "Reply in English."))},
+                        {"role": "system", "content": (
+                            "You are a helpful voice assistant on a small robot speaker. "
+                            "Keep answers under 2 short sentences, plain text, no markdown, no emojis. "
+                            "Always reply in the same language the user's message actually is. "
+                            "Judge that from the message itself: if it is Arabic - including Arabic "
+                            "words that got transcribed using English letters by mistake - reply "
+                            "entirely in Arabic script. If it is English, reply in English. Never mix "
+                            "languages in one reply." + lang_hint
+                        )},
                         {"role": "user", "content": question_text},
                     ],
                 )
