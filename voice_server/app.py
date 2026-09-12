@@ -216,14 +216,14 @@ FUCK_REPLY = "of course baby my ass is ready for you."
 
 
 def is_sazyan_love_question(text):
-    return fuzzy_match(text, [["who love me more you or Sazyan"]])
+    return fuzzy_match(text, [["love me more you or Sazyan"]])
 
 
 SAZYAN_LOVE_REPLY = "Of course baby I love you more who is Sazyan."
 
 
 def is_good_tonight_question(text):
-    return fuzzy_match(text, [["I will sleep good tonight"]])
+    return fuzzy_match(text, [["good tonight"]])
 
 
 GOOD_TONIGHT_REPLY = "Good night daddy."
