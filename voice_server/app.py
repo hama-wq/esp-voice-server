@@ -222,11 +222,11 @@ def is_sazyan_love_question(text):
 SAZYAN_LOVE_REPLY = "Of course baby I love you more who is Sazyan."
 
 
-def is_good_tonight_question(text):
-    return fuzzy_match(text, [["good tonight"]])
+def is_good_night_question(text):
+    return fuzzy_match(text, [["good night"]])
 
 
-GOOD_TONIGHT_REPLY = "Good night daddy."
+GOOD_NIGHT_REPLY = "Good night daddy."
 
 
 def is_goodsleep_question(text):
@@ -802,8 +802,8 @@ def voice_query():
                 reply_text = FUCK_REPLY
             elif is_sazyan_love_question(question_text):
                 reply_text = SAZYAN_LOVE_REPLY
-            elif is_good_tonight_question(question_text):
-                reply_text = GOOD_TONIGHT_REPLY
+            elif is_good_night_question(question_text):
+                reply_text = GOOD_NIGHT_REPLY
             elif is_goodsleep_question(question_text):
                 reply_text = GOODSLEEP_REPLY
             elif is_hamza_question(question_text):
