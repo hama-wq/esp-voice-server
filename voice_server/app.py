@@ -1043,13 +1043,25 @@ def describe_duration_arabic(total_seconds):
 
 def _transcribe_auto(wav_bytes, wake_word):
     """One unforced transcription - Whisper picks the language itself.
-    Uses the short, non-instructional name hint (not a full English
-    sentence), which doesn't bias the decoder toward any one language."""
+
+    Deliberately NO `prompt` at all here, not even a short bilingual
+    name hint. Any prompt content, even just "Alexander أليكسندر
+    الكسندر" with no instructional sentence around it, was still
+    enough to bias this unforced call toward translating clear
+    English speech into fluent, coherent (not garbled) Arabic text -
+    the same failure mode as the original English-sentence prompt,
+    just in the opposite direction. This is the one prompt
+    configuration already confirmed clean of that bias in testing:
+    no prompt, full auto-detect. The wake word occasionally missing
+    from the transcript as a result is a known, much smaller downside
+    (silence, not a wrong-language answer) - _transcribe_forced()
+    below still gets a same-language prompt safely, since forcing the
+    `language` parameter there means the prompt can't cross-contaminate
+    which language gets chosen."""
     return client.audio.transcriptions.create(
         model="whisper-1",
         file=("query.wav", wav_bytes, "audio/wav"),
         response_format="verbose_json",
-        prompt=f"{wake_word} أليكسندر الكسندر",
     )
 
 
