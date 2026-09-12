@@ -75,14 +75,25 @@ def is_time_request(text):
         r"\bcurrent time\b",
         r"\bdo you know the time\b",
         r"\bwhat time do (i|we) have\b",
-        # Arabic
-        r"كم الساعة",
-        r"ما هي الساعة",
-        r"الساعة كم",
-        r"كم الوقت",
-        r"ما هو الوقت",
     ]
-    return any(re.search(p, t) for p in patterns)
+    if any(re.search(p, t) for p in patterns):
+        return True
+    # Arabic - checked on normalized text so Arabic-Indic digits,
+    # diacritics, and alef/ya spelling variants all still match.
+    tn = normalize_arabic(t)
+    arabic_patterns = [
+        r"كم الساع",      # كم الساعة / كم الساعه
+        r"الساع. كم",
+        r"ما .?ي الساع",  # ما هي الساعة
+        r"كم الوقت",
+        r"ما .?و الوقت",
+        r"ما الوقت",
+        r"شنو الساع",     # dialect
+        r"شكد الساع",     # Iraqi dialect
+        r"وقت .?لان",
+        r"الساع. الان",
+    ]
+    return any(re.search(normalize_arabic(p), tn) for p in arabic_patterns)
 
 
 def is_date_request(text):
@@ -100,17 +111,22 @@ def is_date_request(text):
         r"\bwhat'?s the month\b",
         r"\btoday'?s date\b",
         r"\bwhat year is it\b",
-        # Arabic
-        r"ما هو التاريخ",
-        r"ما التاريخ",
-        r"تاريخ اليوم",
-        r"كم التاريخ",
-        r"أي يوم",
-        r"اي يوم",
-        r"أي شهر",
-        r"اي شهر",
     ]
-    return any(re.search(p, t) for p in patterns)
+    if any(re.search(p, t) for p in patterns):
+        return True
+    tn = normalize_arabic(t)
+    arabic_patterns = [
+        r"التاريخ",
+        r"تاريخ اليوم",
+        r"اي يوم",
+        r"اي شهر",
+        r"شنو التاريخ",
+        r"شهر كم",
+        r"كم اليوم",
+        r"اي سنه",
+        r"اي عام",
+    ]
+    return any(re.search(normalize_arabic(p), tn) for p in arabic_patterns)
 
 
 MONTH_NAMES = ["", "January", "February", "March", "April", "May", "June",
@@ -150,6 +166,50 @@ def format_spoken_time(time_str):
     if hour12 == 0:
         hour12 = 12
     return f"{hour12}:{minute:02d} {period}"
+
+
+ARABIC_INDIC_DIGITS = str.maketrans("٠١٢٣٤٥٦٧٨٩۰۱۲۳۴۵۶۷۸۹", "01234567890123456789")
+
+# Arabic spoken numbers (1-59) used for hours and durations.
+ARABIC_NUMBER_WORDS = {
+    "واحد": 1, "واحدة": 1, "الواحدة": 1,
+    "اثنين": 2, "اثنان": 2, "ثنتين": 2, "الثانية": 2,
+    "ثلاث": 3, "ثلاثة": 3, "الثالثة": 3,
+    "اربع": 4, "أربع": 4, "اربعة": 4, "أربعة": 4, "الرابعة": 4,
+    "خمس": 5, "خمسة": 5, "الخامسة": 5,
+    "ست": 6, "ستة": 6, "السادسة": 6,
+    "سبع": 7, "سبعة": 7, "السابعة": 7,
+    "ثمان": 8, "ثمانية": 8, "ثمانيه": 8, "الثامنة": 8,
+    "تسع": 9, "تسعة": 9, "التاسعة": 9,
+    "عشر": 10, "عشرة": 10, "العاشرة": 10,
+    "احد عشر": 11, "أحد عشر": 11, "الحادية عشرة": 11,
+    "اثنا عشر": 12, "اثني عشر": 12, "الثانية عشرة": 12,
+    "خمسة عشر": 15, "عشرين": 20, "ثلاثين": 30, "اربعين": 40, "أربعين": 40, "خمسين": 50,
+}
+
+
+def normalize_arabic(text):
+    """Converts Arabic-Indic digits to normal ones and strips the
+    diacritics/variant letter forms that make matching unreliable."""
+    if not text:
+        return text
+    t = text.translate(ARABIC_INDIC_DIGITS)
+    # Normalize the different alef/ya/ta-marbuta forms to one spelling
+    t = t.replace("أ", "ا").replace("إ", "ا").replace("آ", "ا")
+    t = t.replace("ى", "ي").replace("ة", "ه")
+    # Strip Arabic diacritics
+    t = re.sub(r"[\u064B-\u0652\u0670]", "", t)
+    return t
+
+
+def arabic_word_to_number(text):
+    """Finds an Arabic spoken number in the text, longest match first
+    so 'احد عشر' (11) beats 'عشر' (10)."""
+    t = normalize_arabic(text)
+    for word in sorted(ARABIC_NUMBER_WORDS, key=len, reverse=True):
+        if normalize_arabic(word) in t:
+            return ARABIC_NUMBER_WORDS[word]
+    return None
 
 
 def is_arabic(text):
@@ -579,11 +639,16 @@ def parse_cancel_request(text):
     running timer or alarm (e.g. "remove the alarm", "cancel the
     timer", "stop the timer"). Returns "timer", "alarm", or None."""
     t = text.lower()
+    tn = normalize_arabic(t)
     cancel_words = ["remove", "cancel", "stop", "delete", "clear", "turn off"]
-    if not any(w in t for w in cancel_words):
+    # Arabic: الغي / احذف / شيل / ايقاف / اوقف / امسح
+    arabic_cancel = ["الغي", "الغاء", "احذف", "حذف", "شيل", "ايقاف", "اوقف", "امسح", "بطل"]
+    has_cancel_word = any(w in t for w in cancel_words) or \
+                      any(normalize_arabic(w) in tn for w in arabic_cancel)
+    if not has_cancel_word:
         return None
-    has_alarm = "alarm" in t
-    has_timer = "timer" in t
+    has_alarm = "alarm" in t or normalize_arabic("منبه") in tn
+    has_timer = "timer" in t or any(normalize_arabic(w) in tn for w in ["مؤقت", "موقت", "تايمر"])
     if has_alarm and not has_timer:
         return "alarm"
     if has_timer and not has_alarm:
@@ -599,8 +664,39 @@ def parse_alarm_request(text):
     GPT - same reasoning as the timer: an exact time needs to be
     exact, not guessed."""
     t = text.lower()
-    if "alarm" not in t and "منبه" not in t:
+    tn = normalize_arabic(t)  # Arabic-Indic digits -> normal, spellings unified
+
+    arabic_alarm_words = ["منبه", "المنبه", "نبهني", "صحيني", "ايقظني"]
+    is_arabic_alarm = any(normalize_arabic(w) in tn for w in arabic_alarm_words)
+    if "alarm" not in t and not is_arabic_alarm:
         return None
+
+    # --- Arabic path: handled separately so spoken hours, Arabic-Indic
+    # digits, and صباحا/مساء (AM/PM) all work properly. ---
+    if is_arabic_alarm:
+        ar_hour = ar_minute = None
+        # "7:30" style
+        m = re.search(r"\b(\d{1,2}):(\d{2})\b", tn)
+        if m:
+            ar_hour, ar_minute = int(m.group(1)), int(m.group(2))
+        else:
+            m = re.search(r"\b(\d{1,2})\b", tn)
+            if m:
+                ar_hour, ar_minute = int(m.group(1)), 0
+            else:
+                w = arabic_word_to_number(tn)
+                if w is not None and 1 <= w <= 12:
+                    ar_hour, ar_minute = w, 0
+        if ar_hour is None:
+            return None
+        # صباحا / مساء -> AM / PM
+        if re.search(r"مساء|ليلا|العصر|المغرب", tn) and ar_hour != 12:
+            ar_hour += 12
+        elif re.search(r"صباحا|الصبح|فجرا", tn) and ar_hour == 12:
+            ar_hour = 0
+        if not (0 <= ar_hour <= 23 and 0 <= ar_minute <= 59):
+            return None
+        return (ar_hour, ar_minute)
 
     hour = minute = None
     ampm = None
@@ -659,11 +755,47 @@ def parse_timer_request(text):
     and this is far more reliable than hoping the model gets it right
     and phrases its reply in a way we can parse back out."""
     t = text.lower()
-    if "timer" not in t and "مؤقت" not in t and "موقت" not in t:
+    tn = normalize_arabic(t)
+    arabic_timer_words = ["مؤقت", "موقت", "تايمر", "عداد"]
+    is_arabic_timer = any(normalize_arabic(w) in tn for w in arabic_timer_words)
+    if "timer" not in t and not is_arabic_timer:
         return None
     total_seconds = 0
     found = False
-    # Arabic units first - digits followed by ساعة/دقيقة/ثانية
+
+    if is_arabic_timer:
+        # Arabic units - digits followed by ساعة/دقيقة/ثانية
+        for match in re.finditer(r"(\d+)\s*(ساع\w*|دقيق\w*|دقائق|ثاني\w*|ثواني)", tn):
+            num = int(match.group(1))
+            unit = match.group(2)
+            if unit.startswith("ساع"):
+                total_seconds += num * 3600
+            elif unit.startswith("دق") or unit.startswith("دقائق"):
+                total_seconds += num * 60
+            else:
+                total_seconds += num
+            found = True
+        if not found:
+            # Spoken Arabic number instead of digits ("عشر دقائق")
+            w = arabic_word_to_number(tn)
+            if w is None:
+                # Bare unit with no number at all ("مؤقت ساعة" = one
+                # hour, "مؤقت دقيقة" = one minute) - implies 1.
+                if re.search(r"ساع|دقيق|ثاني", tn):
+                    w = 1
+            if w is not None:
+                if re.search(r"ساع", tn):
+                    total_seconds = w * 3600
+                elif re.search(r"دقيق|دقائق", tn):
+                    total_seconds = w * 60
+                elif re.search(r"ثاني|ثواني", tn):
+                    total_seconds = w
+                if total_seconds > 0:
+                    found = True
+        if found:
+            return total_seconds if total_seconds > 0 else None
+        return None
+
     for match in re.finditer(r"(\d+)\s*(ساعة|ساعات|دقيقة|دقائق|ثانية|ثواني)", t):
         num = int(match.group(1))
         unit = match.group(2)
