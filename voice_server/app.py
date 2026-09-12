@@ -1140,8 +1140,16 @@ def voice_query():
             # actually detected, which is more reliable than guessing
             # from the script (it sometimes transliterates Arabic
             # into Latin letters).
+            #
+            # Deliberately NOT passing a `prompt` here. An English-only
+            # instructional prompt ("The assistant's name is Alexander...")
+            # was found to bias the decoder into continuing in English for
+            # the WHOLE transcription - it would sometimes translate
+            # genuinely Arabic speech into fluent English text instead of
+            # transcribing it (e.g. "من هو حمزة؟" coming back as "who is
+            # Hamza?"), which no amount of downstream language-detection
+            # can catch since there's no Arabic left in the string by then.
             response_format="verbose_json",
-            prompt=f"The assistant's name is {wake_word}. The speaker may talk in English or Arabic.",
         )
         detected_lang = getattr(transcript, "language", "") or ""
         heard_text = transcript.text.strip()
